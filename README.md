@@ -14,7 +14,7 @@ This repository demonstrates how to set up a Laravel 10 REST API using Laravel P
 
 1. **Setting up your project:**
 - ```composer create-project --prefer-dist laravel/laravel [filename]```
-- Make sure you're in the file name you're into: `cd:[your file name]`
+- Make sure you're in the file name you're into: `cd [your file name]`
 - After that, run ```composer require laravel/passport```
 - ```php artisan passport:install```
 
@@ -56,7 +56,7 @@ DB_PASSWORD=
 4.  **Models**
 User Models
 
-In `app/Models/User.php`, add the HasApiTokens trait to enable Passport authentication:
+In `"app/Models/User.php"`, add the HasApiTokens trait to enable Passport authentication:
 ```<?php
   
 namespace App\Models;
@@ -88,7 +88,7 @@ class User extends Authenticatable
 }
 ```
 5. Routes
-In `routes/api.php`, define the API routes:
+In `"routes/api.php"`, define the API routes:
 ```<?php
   
 use Illuminate\Support\Facades\Route;
@@ -104,7 +104,7 @@ Route::middleware('auth:api')->group(function () {
 ```
 6. **Controllers**
 BaseController
-The `BaseController` handles success and error responses:
+The `"BaseController"` handles success and error responses:
 ```<?php
 
 namespace App\Http\Controllers\API;
@@ -139,7 +139,7 @@ class BaseController extends Controller
 }
 ```
 7. **RegisterController**
-The `RegisterController` handles user registration and login:
+The `"RegisterController"` handles user registration and login:
 ```<?php
 
 namespace App\Http\Controllers\API;
@@ -193,15 +193,20 @@ class RegisterController extends BaseController
 ## Running the Application
 1. **Start the Laravel Development server**
    - First, you need to run `ipconfig` in terminal.
+  
    - After knowing the IPV4's IP, example, `192.168.1.6` copy it and go to `.env` file.
+   
    - Put it like this: ```APP_URL=http://192.168.1.6:3000```
 2. **Running the server:**
-   - When running the server make sure the `Apache` and `MySQL` in Xamppp Control Panel
+   
+   - When running the server make sure the `Apache` and `MySQL` in Xampp Control Panel
+     
    - After making sure it is started, run this in your project's terminal
+     
    - ```php artisan serve --host=192.168.1.6 --port=3000```
 
 
-## Godbless coding 💦
+## Godbless Coding 💦
 
 
 
