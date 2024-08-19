@@ -13,12 +13,13 @@ This repository demonstrates how to set up a Laravel 10 REST API using Laravel P
 ## Installation
 
 1. **Setting up your project:**
-- ```composer create-project --prefer-dist laravel/laravel filename```
-- ```composer require laravel/passport```
+- ```composer create-project --prefer-dist laravel/laravel [filename]```
+- Make sure you're in the file name you're into: `cd:[your file name]`
+- After that, run ```composer require laravel/passport```
 - ```php artisan passport:install```
 
 2. **Configure Authentication:**
-In config/auth.php, update the API guard driver to use Passport:
+In `config/auth.php`, update the API guard driver to use Passport:
 ```
 'guards' => [
     'web' => [
@@ -33,13 +34,176 @@ In config/auth.php, update the API guard driver to use Passport:
 ],
 ```
 
-3. Migrate Database:
-If you want to create a table, run this:
+3. **Migrate Database**:
+- If you want to create a table, run this:
 ```
-- php artisan make:migration create_table_[tablenames]
-- php artisan migrate
+php artisan make:migration create_table_[tablenames]
 ```
-#
+- But first, you need to go to `.env`, then find this:
+```
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=[database_name]
+DB_USERNAME=root
+DB_PASSWORD=
+```
+- The `DB_CONNECTION` should be set to `mysql`. 
+- By migrating, means you will update the database's tables; hence it will not send to the local host if this is not run: 
+```php artisan migrate``` 
+
+
+4.  **Models**
+User Models
+
+In `app/Models/User.php`, add the HasApiTokens trait to enable Passport authentication:
+```<?php
+  
+namespace App\Models;
+  
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Passport\HasApiTokens;
+  
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+}
+```
+5. Routes
+In `routes/api.php`, define the API routes:
+```<?php
+  
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\API\RegisterController;
+use App\Http\Controllers\API\ProductController;
+
+Route::post('register', [RegisterController::class, 'register']);
+Route::post('login', [RegisterController::class, 'login']);
+
+Route::middleware('auth:api')->group(function () {
+    Route::resource('products', ProductController::class);
+});
+```
+6. **Controllers**
+BaseController
+The `BaseController` handles success and error responses:
+```<?php
+
+namespace App\Http\Controllers\API;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class BaseController extends Controller
+{
+    public function sendResponse($result, $message)
+    {
+        return response()->json([
+            'success' => true,
+            'data'    => $result,
+            'message' => $message,
+        ], 200);
+    }
+
+    public function sendError($error, $errorMessages = [], $code = 404)
+    {
+        $response = [
+            'success' => false,
+            'message' => $error,
+        ];
+
+        if (!empty($errorMessages)) {
+            $response['data'] = $errorMessages;
+        }
+
+        return response()->json($response, $code);
+    }
+}
+```
+7. **RegisterController**
+The `RegisterController` handles user registration and login:
+```<?php
+
+namespace App\Http\Controllers\API;
+
+use Illuminate\Http\Request;
+use App\Http\Controllers\API\BaseController as BaseController;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Validator;
+use Illuminate\Http\JsonResponse;
+
+class RegisterController extends BaseController
+{
+    public function register(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required',
+            'email' => 'required|email',
+            'password' => 'required',
+            'c_password' => 'required|same:password',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->sendError('Validation Error.', $validator->errors());
+        }
+
+        $input = $request->all();
+        $input['password'] = bcrypt($input['password']);
+        $user = User::create($input);
+        $success['token'] = $user->createToken('MyApp')->accessToken;
+        $success['name'] = $user->name;
+
+        return $this->sendResponse($success, 'User register successfully.');
+    }
+
+    public function login(Request $request): JsonResponse
+    {
+        if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
+            $user = Auth::user();
+            $success['token'] = $user->createToken('MyApp')->accessToken;
+            $success['name'] = $user->name;
+
+            return $this->sendResponse($success, 'User login successfully.');
+        } else {
+            return $this->sendError('Unauthorised.', ['error' => 'Unauthorised']);
+        }
+    }
+}
+```
+ 
+## Running the Application
+1. **Start the Laravel Development server**
+   - First, you need to run `ipconfig` in terminal.
+   - After knowing the IPV4's IP, example, `192.168.1.6` copy it and go to `.env` file.
+   - Put it like this: ```APP_URL=http://192.168.1.6:3000```
+2. **Running the server:**
+   - When running the server make sure the `Apache` and `MySQL` in Xamppp Control Panel
+   - After making sure it is started, run this in your project's terminal
+   - ```php artisan serve --host=192.168.1.6 --port=3000```
+
+
+## Godbless coding 💦
+
+
 
 
 
