@@ -1,3 +1,48 @@
+## Setting up
+# Laravel 10 REST API with Passport Example
+
+This repository demonstrates how to set up a Laravel 10 REST API using Laravel Passport for authentication. Follow the instructions below to install and configure the API.
+
+## Prerequisites
+
+- PHP >= 8.0
+- Composer
+- MySQL or another supported database
+- Node.js & npm (for frontend, if needed)
+
+## Installation
+
+1. **Setting up your project:**
+- ```composer create-project --prefer-dist laravel/laravel filename```
+- ```composer require laravel/passport```
+- ```php artisan passport:install```
+
+2. **Configure Authentication:**
+In config/auth.php, update the API guard driver to use Passport:
+```
+'guards' => [
+    'web' => [
+        'driver' => 'session',
+        'provider' => 'users',
+    ],
+
+    'api' => [
+        'driver' => 'passport',
+        'provider' => 'users',
+    ],
+],
+```
+
+3. Migrate Database:
+If you want to create a table, run this:
+```
+- php artisan make:migration create_table_[tablenames]
+- php artisan migrate
+```
+#
+
+
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
