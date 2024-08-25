@@ -61,6 +61,9 @@ class User extends Authenticatable
     public function purchaseOrder(){
         return $this->hasMany(PurchaseOrder::class);
     }
+    public function deliveries(){
+        return $this->hasMany(Delivery::class);
+    }
 // End Foreign Key Connection
 
 }

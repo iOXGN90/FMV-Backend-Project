@@ -104,4 +104,34 @@ class AssignEmployeeController extends BaseController
             return response()->json(['error' => 'Error occurred while removing the assignment: ' . $e->getMessage()], 500);
         }
     }
+
+
+    //* Show All Pending Employee
+    public function get_employees_with_pending_deliveries()
+    {
+        $employees = User::whereHas('deliveries', function ($query) {
+            $query->where('status', 'P');
+        })->get();
+
+        return response()->json($employees);
+    }
+
+
+
+    //* Show All Successful Employee
+    public function get_employees_with_successful_deliveries()
+    {
+        // Fetch employees with deliveries that have a 'S' status (Success)
+        $employeesWithSuccessfulDeliveries = User::whereHas('deliveries', function ($query) {
+            $query->where('status', 'S');
+        })->get();
+
+        if ($employeesWithSuccessfulDeliveries->isEmpty()) {
+            return response()->json(['message' => 'No employees with successful deliveries found'], 404);
+        }
+
+        return response()->json($employeesWithSuccessfulDeliveries, 200);
+    }
+
+
 }

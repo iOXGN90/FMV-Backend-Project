@@ -87,8 +87,8 @@
     //! End Assign Delivery
 
     //! Start Show Pending/Success User Delivery
-        Route::post('my-deliveries/pending', [DeliveryController::class, 'my_pending_deliveries']);
-        Route::post('my-deliveries/successful', [DeliveryController::class, 'my_successful_deliveries']);
+        Route::get('my-deliveries/pending', [AssignEmployeeController::class, 'get_employees_with_pending_deliveries']);
+        Route::get('my-deliveries/successful', [AssignEmployeeController::class, 'get_employees_with_successful_deliveries']);
     //! End Show Pending/Success User Delivery
 
 //* End Purchase Order and Walk-in
