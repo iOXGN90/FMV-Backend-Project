@@ -16,6 +16,7 @@
     use App\Http\Controllers\api\DeliveryController;
     use App\Http\Controllers\api\SaleTypeController;
     use App\Http\Controllers\api\AssignEmployeeController;
+    use App\Http\Controllers\api\ViewDeliveries;
 
 // End Import
 
@@ -86,10 +87,12 @@
         Route::post('remove-employee', [AssignEmployeeController::class, 'remove_employee']);
     //! End Assign Delivery
 
-    //! Start Show Pending/Success User Delivery
-        Route::get('my-deliveries/pending', [AssignEmployeeController::class, 'get_employees_with_pending_deliveries']);
-        Route::get('my-deliveries/successful', [AssignEmployeeController::class, 'get_employees_with_successful_deliveries']);
-    //! End Show Pending/Success User Delivery
+    //! Start Get Pending/Success User Delivery
+        Route::get('my-deliveries/pending', [ViewDeliveries::class, 'pending_deliveries']);
+        Route::get('my-deliveries/on-delivery', [ViewDeliveries::class, 'on_delivery']);
+        Route::get('my-deliveries/successful', [ViewDeliveries::class, 'successful_deliveries']);
+        Route::get('my-deliveries/failed', [ViewDeliveries::class, 'failed_deliveries']);
+    //! End Get Pending/Success User Delivery
 
 //* End Purchase Order and Walk-in
 

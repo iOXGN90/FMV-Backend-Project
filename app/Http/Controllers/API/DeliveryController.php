@@ -19,15 +19,16 @@ class DeliveryController extends BaseController
         return response()->json($deliveries);
     }
 
+    //* This will initiate once the delivery man already delivered the products
     // Update a specific delivery by ID
     public function update_delivery(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
             'delivery_no' => 'sometimes|integer',
             'notes' => 'sometimes|string',
-            'status' => 'sometimes|in:P,F,S',
-            'no_of_damage' => 'sometimes|integer',
-            'images' => 'sometimes|array',
+            'status' => 'sometimes|in:P,F,S,OD', // Include 'P' as an allowed status
+            'no_of_damage' => 'sometimes|integer|min:0',
+            'images' => 'required_if:no_of_damage,>,0|array',
             'images.*' => 'sometimes|file|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
@@ -43,7 +44,14 @@ class DeliveryController extends BaseController
 
         DB::beginTransaction();
         try {
-            $delivery->update($request->only(['delivery_no', 'notes', 'status', 'no_of_damage']));
+            // Automatically set the status to 'P' if certain conditions are met
+            $dataToUpdate = $request->only(['delivery_no', 'notes', 'status', 'no_of_damage']);
+
+            if (!isset($dataToUpdate['status'])) {
+                $dataToUpdate['status'] = 'P'; // Automatically set status to 'P' if not provided
+            }
+
+            $delivery->update($dataToUpdate);
 
             // Handle image uploads
             if ($request->has('images')) {
@@ -63,6 +71,8 @@ class DeliveryController extends BaseController
             return response()->json(['error' => 'Error occurred while updating the delivery: ' . $e->getMessage()], 500);
         }
     }
+
+
 
     // Get a specific delivery by ID
     public function show($id)

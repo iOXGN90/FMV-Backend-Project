@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Models\Delivery;
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,10 @@ class AssignEmployeeController extends BaseController
     {
         $validator = Validator::make($request->all(), [
             'purchase_order_id' => 'required|exists:purchase_orders,id',
-            'user_id' => 'required|exists:users,id'
+            'user_id' => 'required|exists:users,id',
+            'product_details' => 'required|array',
+            'product_details.*.product_id' => 'required|exists:products,id',
+            'product_details.*.quantity' => 'required|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -39,36 +43,59 @@ class AssignEmployeeController extends BaseController
             return response()->json(['error' => 'The user being assigned must be an employee'], 403);
         }
 
-        // Check if the user is already assigned to the purchase order
-        $existingDelivery = Delivery::where('purchase_order_id', $purchaseOrder->id)
-            ->where('user_id', $employee->id)
-            ->first();
-
-        if ($existingDelivery) {
-            return response()->json(['error' => 'This employee is already assigned to the purchase order'], 400);
-        }
-
         DB::beginTransaction();
         try {
-            // Create the delivery record
-            $deliveryData = [
-                'purchase_order_id' => $purchaseOrder->id,
-                'user_id' => $employee->id,
-                'delivery_no' => Delivery::where('purchase_order_id', $purchaseOrder->id)->max('delivery_no') + 1,
-                'status' => 'P', // Default status for delivery
-                'no_of_damage' => 0, // Default value
-                'notes' => $request->input('notes', '') // Optional notes
-            ];
+            foreach ($request->input('product_details') as $productDetailData) {
+                $productDetail = $purchaseOrder->productDetails()
+                    ->where('product_id', $productDetailData['product_id'])
+                    ->first();
 
-            Delivery::create($deliveryData);
+                if (!$productDetail) {
+                    throw new \Exception('Product not found in purchase order');
+                }
+
+                // Calculate the remaining quantity for this product
+                $deliveredQuantity = Delivery::where('purchase_order_id', $purchaseOrder->id)
+                    ->where('product_id', $productDetailData['product_id'])
+                    ->sum('quantity');
+
+                $remainingQuantity = $productDetail->quantity - $deliveredQuantity;
+
+                if ($productDetailData['quantity'] > $remainingQuantity) {
+                    throw new \Exception('Delivery quantity exceeds remaining quantity for product ID: ' . $productDetailData['product_id']);
+                }
+
+                // Deduct the quantity from the product's available quantity in the inventory
+                $product = Product::find($productDetailData['product_id']);
+                if ($product->quantity < $productDetailData['quantity']) {
+                    throw new \Exception('Not enough product available in the inventory');
+                }
+                $product->quantity -= $productDetailData['quantity'];
+                $product->save();
+
+                // Create the delivery record
+                $deliveryData = [
+                    'purchase_order_id' => $purchaseOrder->id,
+                    'user_id' => $employee->id,
+                    'product_id' => $productDetailData['product_id'],
+                    'quantity' => $productDetailData['quantity'],
+                    'delivery_no' => Delivery::where('purchase_order_id', $purchaseOrder->id)->max('delivery_no') + 1,
+                    'status' => 'OD', // Default status for delivery
+                    'no_of_damage' => 0, // Default value
+                    'notes' => $request->input('notes', '') // Optional notes
+                ];
+
+                Delivery::create($deliveryData);
+            }
 
             DB::commit();
-            return response()->json(['message' => 'Employee assigned successfully'], 200);
+            return response()->json(['message' => 'Employee assigned and product quantity updated successfully'], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Error occurred while assigning the employee: ' . $e->getMessage()], 500);
         }
     }
+
 
     // Remove assigned employee from a delivery
     public function remove_employee(Request $request)
@@ -106,32 +133,6 @@ class AssignEmployeeController extends BaseController
     }
 
 
-    //* Show All Pending Employee
-    public function get_employees_with_pending_deliveries()
-    {
-        $employees = User::whereHas('deliveries', function ($query) {
-            $query->where('status', 'P');
-        })->get();
-
-        return response()->json($employees);
-    }
-
-
-
-    //* Show All Successful Employee
-    public function get_employees_with_successful_deliveries()
-    {
-        // Fetch employees with deliveries that have a 'S' status (Success)
-        $employeesWithSuccessfulDeliveries = User::whereHas('deliveries', function ($query) {
-            $query->where('status', 'S');
-        })->get();
-
-        if ($employeesWithSuccessfulDeliveries->isEmpty()) {
-            return response()->json(['message' => 'No employees with successful deliveries found'], 404);
-        }
-
-        return response()->json($employeesWithSuccessfulDeliveries, 200);
-    }
 
 
 }
