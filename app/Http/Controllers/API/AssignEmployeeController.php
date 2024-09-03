@@ -15,6 +15,7 @@ class AssignEmployeeController extends BaseController
     // Assign employee to a purchase order
     public function assign_employee(Request $request)
     {
+        // Validation
         $validator = Validator::make($request->all(), [
             'purchase_order_id' => 'required|exists:purchase_orders,id',
             'user_id' => 'required|exists:users,id',
@@ -73,16 +74,19 @@ class AssignEmployeeController extends BaseController
                 $product->quantity -= $productDetailData['quantity'];
                 $product->save();
 
+                // Calculate the next delivery number for this purchase order
+                $currentMaxDeliveryNo = Delivery::where('purchase_order_id', $purchaseOrder->id)->max('delivery_no');
+                $nextDeliveryNo = $currentMaxDeliveryNo ? $currentMaxDeliveryNo + 1 : 1;
+
                 // Create the delivery record
                 $deliveryData = [
                     'purchase_order_id' => $purchaseOrder->id,
                     'user_id' => $employee->id,
                     'product_id' => $productDetailData['product_id'],
                     'quantity' => $productDetailData['quantity'],
-                    'delivery_no' => Delivery::where('purchase_order_id', $purchaseOrder->id)->max('delivery_no') + 1,
-                    'status' => 'OD', // Default status for delivery
-                    'no_of_damage' => 0, // Default value
-                    'notes' => $request->input('notes', '') // Optional notes
+                    'delivery_no' => $nextDeliveryNo, // Sequential delivery number
+                    'status' => 'OD', //OD = On Delivery
+                    'notes' => $request->input('notes', '')
                 ];
 
                 Delivery::create($deliveryData);
@@ -97,8 +101,10 @@ class AssignEmployeeController extends BaseController
     }
 
 
+
+
     // Remove assigned employee from a delivery
-    public function remove_employee(Request $request)
+    public function remove_assigned_employee(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'delivery_id' => 'required|exists:deliveries,id',

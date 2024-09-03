@@ -31,4 +31,8 @@ class Delivery extends Model
     {
         return $this->hasMany(DeliveryProduct::class);
     }
+
+    public function damages(){
+        return $this->hasMany(Damage::class);
+    }
 }

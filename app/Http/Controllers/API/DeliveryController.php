@@ -5,6 +5,8 @@ namespace App\Http\Controllers\API;
 use App\Models\Delivery;
 use App\Models\Image;
 use App\Models\User;
+use App\Models\DeliveryProduct;
+use App\Models\Damage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -27,8 +29,10 @@ class DeliveryController extends BaseController
             'delivery_no' => 'sometimes|integer',
             'notes' => 'sometimes|string',
             'status' => 'sometimes|in:P,F,S,OD', // Include 'P' as an allowed status
-            'no_of_damage' => 'sometimes|integer|min:0',
-            'images' => 'required_if:no_of_damage,>,0|array',
+            'damages' => 'sometimes|array',
+            'damages.*.product_id' => 'required_with:damages|exists:products,id',
+            'damages.*.quantity' => 'required_with:damages|integer|min:1',
+            'images' => 'required_if:damages,exists|array',
             'images.*' => 'sometimes|file|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
@@ -44,14 +48,33 @@ class DeliveryController extends BaseController
 
         DB::beginTransaction();
         try {
-            // Automatically set the status to 'P' if certain conditions are met
-            $dataToUpdate = $request->only(['delivery_no', 'notes', 'status', 'no_of_damage']);
-
+            // Update delivery details
+            $dataToUpdate = $request->only(['delivery_no', 'notes', 'status']);
             if (!isset($dataToUpdate['status'])) {
                 $dataToUpdate['status'] = 'P'; // Automatically set status to 'P' if not provided
             }
 
             $delivery->update($dataToUpdate);
+
+            // Handle damages if reported
+            if ($request->has('damages')) {
+                foreach ($request->input('damages') as $damageData) {
+                    $deliveryProduct = DeliveryProduct::where('delivery_id', $delivery->id)
+                        ->where('product_id', $damageData['product_id'])
+                        ->first();
+
+                    if (!$deliveryProduct) {
+                        throw new \Exception('Product not found in delivery');
+                    }
+
+                    // Create a damage record
+                    Damage::create([
+                        'delivery_id' => $delivery->id,
+                        'delivery_products_id' => $deliveryProduct->id,
+                        'no_of_damages' => $damageData['quantity'],
+                    ]);
+                }
+            }
 
             // Handle image uploads
             if ($request->has('images')) {
@@ -65,12 +88,13 @@ class DeliveryController extends BaseController
             }
 
             DB::commit();
-            return response()->json($delivery->load(['purchaseOrder', 'user', 'deliveryProducts.productDetail.product', 'images']));
+            return response()->json($delivery->load(['purchaseOrder', 'user', 'deliveryProducts.productDetail.product', 'damages', 'images']));
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Error occurred while updating the delivery: ' . $e->getMessage()], 500);
         }
     }
+
 
 
 

@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class DeliveryProduct extends Model
+class Damage extends Model
 {
     use HasFactory;
 
@@ -17,13 +17,9 @@ class DeliveryProduct extends Model
         return $this->belongsTo(Delivery::class);
     }
 
-    public function productDetail()
+    public function deliveryProducts()
     {
-        return $this->belongsTo(ProductDetail::class);
+        return $this->belongsTo(DeliveryProduct::class);
     }
 
-    public function damages()
-    {
-        return $this->hasMany(Damage::class);
-    }
 }

@@ -17,6 +17,7 @@
     use App\Http\Controllers\api\SaleTypeController;
     use App\Http\Controllers\api\AssignEmployeeController;
     use App\Http\Controllers\api\ViewDeliveries;
+    use App\Http\Controllers\api\ViewDamages;
 
 // End Import
 
@@ -84,7 +85,7 @@
 
     //! Start Assign Delivery
         Route::post('assign-employee', [AssignEmployeeController::class, 'assign_employee']);
-        Route::post('remove-employee', [AssignEmployeeController::class, 'remove_employee']);
+        Route::post('remove-employee', [AssignEmployeeController::class, 'remove_assigned_employee']);
     //! End Assign Delivery
 
     //! Start Get Pending/Success User Delivery
@@ -108,5 +109,10 @@
     Route::put('products-restock/{id}', [ProductRestockController::class, 'update']);
     Route::delete('products-restock', [ProductRestockController::class, 'destroy']);
 // End Product ReStocks
+
+// Start View Damages
+    Route::get('damages', [ViewDamages::class, 'index']);
+    Route::get('damages/filter-by-delivery', [ViewDamages::class, 'filterByDelivery']);
+// End View Damages
 
 
