@@ -18,6 +18,8 @@
     use App\Http\Controllers\api\AssignEmployeeController;
     use App\Http\Controllers\api\ViewDeliveries;
     use App\Http\Controllers\api\ViewDamages;
+    use App\Http\Controllers\api\ViewDeliveryPurchaseOrder;
+    use App\Http\Controllers\api\ViewWalkinPurchaseOrder;
 
 // End Import
 
@@ -68,25 +70,31 @@
 //* Start Purchase Order and Walk-in -- The Walk-in still uses the table of purchase-order table
 
     //! Start View All Purchase Order
-        Route::get('purchase-orders',[PurchaseOrderController::class, 'index']);
+        Route::get('purchase-orders',[ViewDeliveryPurchaseOrder::class, 'index']); //No filter
+        Route::get('purchase-orders-delivery', [ViewDeliveryPurchaseOrder::class, 'index_purchase_order']);
+        Route::get('purchase-orders-delivery-pending', [ViewDeliveryPurchaseOrder::class, 'pending_purchase_order']);
+        Route::get('purchase-orders-delivery/{id}', [PurchaseOrderController::class, 'show_purchase_order']);
+
+        Route::get('purchase-orders-walk-in', [ViewWalkinPurchaseOrder::class, 'index_walk_in']);
     //! End View All Purchase Order
 
     //! Start Delivery
-        Route::get('purchase-orders-delivery', [PurchaseOrderController::class, 'index_purchase_order']);
         Route::post('purchase-orders-delivery', [PurchaseOrderController::class, 'create_purchase_order']);
         Route::put('purchase-orders-delivery', [PurchaseOrderController::class, 'update']);
-        Route::get('purchase-orders-delivery/{id}', [PurchaseOrderController::class, 'show']);
     //! End Delivery
 
     //! Start Walk in
         Route::post('purchase-orders-walk-in', [WalkInController::class, 'create_walk_in']);
-        Route::get('purchase-orders-walk-in', [WalkInController::class, 'index_walk_in']);
     //! End Walk in
 
     //! Start Assign Delivery
         Route::post('assign-employee', [AssignEmployeeController::class, 'assign_employee']);
         Route::post('remove-employee', [AssignEmployeeController::class, 'remove_assigned_employee']);
     //! End Assign Delivery
+
+    //! Start Delivery Update - delivery man is assigned to its purchase-order, this route will be initiated by the delivery man depending on its "status"!!!
+        Route::put('update-delivery/{id}', [DeliveryController::class, 'update_delivery']);
+    //! End Delivery Update
 
     //! Start Get Pending/Success User Delivery
         Route::get('my-deliveries/pending', [ViewDeliveries::class, 'pending_deliveries']);

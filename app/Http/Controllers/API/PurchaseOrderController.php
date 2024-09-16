@@ -17,52 +17,6 @@ use Carbon\Carbon;
 class PurchaseOrderController extends BaseController
 {
 
-    public function index()
-    {
-        $purchaseOrders = PurchaseOrder::with('address', 'productDetails')->get();
-        return response()->json($purchaseOrders);
-    }
-
-    // Get all purchase orders
-
-    public function index_purchase_order()
-    {
-        $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])->where('sale_type_id', 1)->get();
-
-        $formattedOrders = $purchaseOrders->map(function ($order) {
-            return [
-                'id' => $order->id,
-                'user_id' => $order->user_id,
-                'address_id' => $order->address_id,
-                'sale_type_id' => $order->sale_type_id,
-                'customer_name' => $order->customer_name,
-                'status' => $order->status,
-                'created_at' => Carbon::parse($order->created_at)->format('l, M d, Y'), // Readable date format
-                'address' => [
-                    'id' => $order->address->id,
-                    'street' => $order->address->street,
-                    'barangay' => $order->address->barangay,
-                    'zip_code' => $order->address->zip_code,
-                    'province' => $order->address->province,
-                    'created_at' => Carbon::parse($order->address->created_at)->format('l, M d, Y'), // Readable date format
-                ],
-                'product_details' => $order->productDetails->map(function ($detail) {
-                    return [
-                        'id' => $detail->id,
-                        'product_id' => $detail->product_id,
-                        'product_name' => $detail->product->product_name ?? 'N/A', // Include product name
-                        'purchase_order_id' => $detail->purchase_order_id,
-                        'price' => $detail->price,
-                        'quantity' => $detail->quantity,
-                    ];
-                }),
-            ];
-        });
-
-        return response()->json($formattedOrders);
-    }
-
-
     // Store a new purchase order with address and product details
     public function create_purchase_order(Request $request)
 {
@@ -158,19 +112,6 @@ class PurchaseOrderController extends BaseController
         return response()->json(['error' => 'Error occurred while creating the purchase order: ' . $e->getMessage()], 500);
     }
 }
-
-
-    // Get a specific purchase order by ID
-    public function show($id)
-    {
-        $purchaseOrder = PurchaseOrder::with('address', 'productDetails')->find($id);
-
-        if (is_null($purchaseOrder)) {
-            return response()->json(['message' => 'Purchase Order not found'], 404);
-        }
-
-        return response()->json($purchaseOrder);
-    }
 
     // Update a specific purchase order with address and product details
     public function update(Request $request, $id)

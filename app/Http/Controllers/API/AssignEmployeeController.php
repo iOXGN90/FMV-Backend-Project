@@ -6,6 +6,8 @@ use App\Models\Delivery;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Models\Product;
+use App\Models\DeliveryProduct;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -46,9 +48,24 @@ class AssignEmployeeController extends BaseController
 
         DB::beginTransaction();
         try {
+            $deliveryDetails = []; // To hold the details for the response
+
+            // Calculate the next delivery number for this purchase order
+            $currentMaxDeliveryNo = Delivery::where('purchase_order_id', $purchaseOrder->id)->max('delivery_no');
+            $nextDeliveryNo = $currentMaxDeliveryNo ? $currentMaxDeliveryNo + 1 : 1;
+
+            // Create the delivery record (without product details)
+            $delivery = Delivery::create([
+                'purchase_order_id' => $purchaseOrder->id,
+                'user_id' => $employee->id,
+                'delivery_no' => $nextDeliveryNo,
+                'status' => 'OD',
+                'notes' => $request->input(key: 'notes', default: '')
+            ]);
+
             foreach ($request->input('product_details') as $productDetailData) {
                 $productDetail = $purchaseOrder->productDetails()
-                    ->where('product_id', $productDetailData['product_id'])
+                    ->where('product_id', operator: $productDetailData['product_id'])
                     ->first();
 
                 if (!$productDetail) {
@@ -56,9 +73,11 @@ class AssignEmployeeController extends BaseController
                 }
 
                 // Calculate the remaining quantity for this product
-                $deliveredQuantity = Delivery::where('purchase_order_id', $purchaseOrder->id)
-                    ->where('product_id', $productDetailData['product_id'])
-                    ->sum('quantity');
+                $deliveredQuantity = DeliveryProduct::whereHas('delivery', function ($query) use ($purchaseOrder) {
+                    $query->where('purchase_order_id', $purchaseOrder->id);
+                })
+                ->where('product_details_id', $productDetailData['product_id']) // match product_details_id
+                ->sum('quantity');
 
                 $remainingQuantity = $productDetail->quantity - $deliveredQuantity;
 
@@ -66,34 +85,49 @@ class AssignEmployeeController extends BaseController
                     throw new \Exception('Delivery quantity exceeds remaining quantity for product ID: ' . $productDetailData['product_id']);
                 }
 
-                // Deduct the quantity from the product's available quantity in the inventory
+                // Get the product's current quantity before deduction
                 $product = Product::find($productDetailData['product_id']);
-                if ($product->quantity < $productDetailData['quantity']) {
+                $beforeQuantity = $product->quantity;
+
+                if ($beforeQuantity < $productDetailData['quantity']) {
                     throw new \Exception('Not enough product available in the inventory');
                 }
+
+                // Deduct the quantity from the product's available quantity in the inventory
                 $product->quantity -= $productDetailData['quantity'];
                 $product->save();
 
-                // Calculate the next delivery number for this purchase order
-                $currentMaxDeliveryNo = Delivery::where('purchase_order_id', $purchaseOrder->id)->max('delivery_no');
-                $nextDeliveryNo = $currentMaxDeliveryNo ? $currentMaxDeliveryNo + 1 : 1;
+                $afterQuantity = $product->quantity; // After deduction
 
-                // Create the delivery record
-                $deliveryData = [
-                    'purchase_order_id' => $purchaseOrder->id,
-                    'user_id' => $employee->id,
-                    'product_id' => $productDetailData['product_id'],
+                // Insert into delivery_products table
+                DeliveryProduct::create([
+                    'delivery_id' => $delivery->id,
+                    'product_details_id' => $productDetailData['product_id'],
                     'quantity' => $productDetailData['quantity'],
-                    'delivery_no' => $nextDeliveryNo, // Sequential delivery number
-                    'status' => 'OD', //OD = On Delivery
-                    'notes' => $request->input('notes', '')
-                ];
+                ]);
 
-                Delivery::create($deliveryData);
+                // Add delivery details to the response array
+                $deliveryDetails[] = [
+                    'delivery_no' => $delivery->delivery_no,
+                    'product_id' => $product->id,
+                    'product_name' => $product->product_name,
+                    'quantity_delivered' => $productDetailData['quantity'],
+                    'before_quantity' => $beforeQuantity, // Before deduction to product
+                    'current_quantity' => $afterQuantity // After deduction to product
+                ];
             }
 
             DB::commit();
-            return response()->json(['message' => 'Employee assigned and product quantity updated successfully'], 200);
+
+            // Return the response with delivery details
+            return response()->json([
+                'message' => 'Employee assigned and product quantity updated successfully',
+                'Delivery Man Name' => $employee->name,
+                'Purchase Order ID' => $purchaseOrder->id,
+                'status' => 'Product(s) on Deliver',
+                'delivery_details' => $deliveryDetails
+            ], 200);
+
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Error occurred while assigning the employee: ' . $e->getMessage()], 500);
@@ -137,8 +171,5 @@ class AssignEmployeeController extends BaseController
             return response()->json(['error' => 'Error occurred while removing the assignment: ' . $e->getMessage()], 500);
         }
     }
-
-
-
 
 }

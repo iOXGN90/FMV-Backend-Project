@@ -12,18 +12,6 @@ use Illuminate\Support\Facades\Validator;
 
 class WalkInController extends BaseController
 {
-    // Start View WalkIn
-    public function index_walk_in()
-    {
-        // Filter and get all walk-in orders where sale_type_id is 2
-        $walkInOrders = PurchaseOrder::with(['address', 'productDetails.product'])
-            ->where('sale_type_id', 2)
-            ->get();
-
-        return response()->json($walkInOrders);
-    }
-    // End View WalkIn
-
     // Store a new walk-in order
     public function create_walk_in(Request $request)
     {

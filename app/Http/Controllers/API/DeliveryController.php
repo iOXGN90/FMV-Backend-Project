@@ -21,14 +21,14 @@ class DeliveryController extends BaseController
         return response()->json($deliveries);
     }
 
-    //* This will initiate once the delivery man already delivered the products
+    //! This code will run once the delivery man sends the status of the delivery.
     // Update a specific delivery by ID
     public function update_delivery(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
             'delivery_no' => 'sometimes|integer',
             'notes' => 'sometimes|string',
-            'status' => 'sometimes|in:P,F,S,OD', // Include 'P' as an allowed status
+            'status' => 'sometimes|in:P,F,S,OD',
             'damages' => 'sometimes|array',
             'damages.*.product_id' => 'required_with:damages|exists:products,id',
             'damages.*.quantity' => 'required_with:damages|integer|min:1',
@@ -51,7 +51,7 @@ class DeliveryController extends BaseController
             // Update delivery details
             $dataToUpdate = $request->only(['delivery_no', 'notes', 'status']);
             if (!isset($dataToUpdate['status'])) {
-                $dataToUpdate['status'] = 'P'; // Automatically set status to 'P' if not provided
+                $dataToUpdate['status'] = 'P'; // Automatically set status to 'P' by default
             }
 
             $delivery->update($dataToUpdate);
@@ -87,6 +87,29 @@ class DeliveryController extends BaseController
                 }
             }
 
+            // Check if all product quantities have been delivered
+            $purchaseOrder = $delivery->purchaseOrder;
+            $allDelivered = true;
+
+            foreach ($purchaseOrder->productDetails as $productDetail) {
+                $deliveredQuantity = DeliveryProduct::whereHas('delivery', function ($query) use ($purchaseOrder) {
+                    $query->where('purchase_order_id', $purchaseOrder->id);
+                })->where('product_details_id', $productDetail->id)
+                ->sum('quantity');
+
+                $remainingQuantity = $productDetail->quantity - $deliveredQuantity;
+
+                if ($remainingQuantity > 0) {
+                    $allDelivered = false;
+                    break;
+                }
+            }
+
+            // If all products are delivered, update the purchase order status to 'S'
+            if ($allDelivered) {
+                $purchaseOrder->update(['status' => 'S']);
+            }
+
             DB::commit();
             return response()->json($delivery->load(['purchaseOrder', 'user', 'deliveryProducts.productDetail.product', 'damages', 'images']));
         } catch (\Exception $e) {
@@ -94,8 +117,6 @@ class DeliveryController extends BaseController
             return response()->json(['error' => 'Error occurred while updating the delivery: ' . $e->getMessage()], 500);
         }
     }
-
-
 
 
     // Get a specific delivery by ID
@@ -164,9 +185,9 @@ class DeliveryController extends BaseController
          $employee = User::find($request->input('user_id'));
 
          // Ensure the user is an employee
-         // if ($employee->user_type_id != 2) {
-         //     return response()->json(['error' => 'User does not have the correct permissions to view deliveries'], 403);
-         // }
+         if ($employee->user_type_id != 2) {
+             return response()->json(['error' => 'User does not have the correct permissions to view deliveries'], 403);
+         }
 
          // Retrieve deliveries with status 'S' (Successful)
          $deliveries = Delivery::with('purchaseOrder', 'user', 'deliveryProducts.productDetail.product', 'images')
