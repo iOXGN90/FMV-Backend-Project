@@ -21,7 +21,7 @@ class DeliveryController extends BaseController
         return response()->json($deliveries);
     }
 
-    //! This code will run once the delivery man sends the status of the delivery.
+    //! This code will run once the delivery man sends the status of the delivery
     // Update a specific delivery by ID
     public function update_delivery(Request $request, $id)
     {
@@ -158,9 +158,9 @@ class DeliveryController extends BaseController
          $employee = User::find($request->input('user_id'));
 
          // Ensure the user is an employee
-         // if ($employee->user_type_id != 2) {
-         //     return response()->json(['error' => 'User does not have the correct permissions to view deliveries'], 403);
-         // }
+         if ($employee->user_type_id != 2) {
+             return response()->json(['error' => 'User does not have the correct permissions to view deliveries'], 403);
+         }
 
          // Retrieve deliveries with status 'P' (Pending)
          $deliveries = Delivery::with('purchaseOrder', 'user', 'deliveryProducts.productDetail.product', 'images')

@@ -18,7 +18,7 @@ class PurchaseOrderController extends BaseController
 {
 
     // Store a new purchase order with address and product details
-    public function create_purchase_order(Request $request)
+    public function create_purchase_order_delivery(Request $request)
 {
     $validator = Validator::make($request->all(), [
         'user_id' => 'required|exists:users,id',

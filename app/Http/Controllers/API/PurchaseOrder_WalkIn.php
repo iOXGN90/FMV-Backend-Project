@@ -10,7 +10,7 @@ use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
-class WalkInController extends BaseController
+class PurchaseOrder_WalkIn extends BaseController
 {
     // Store a new walk-in order
     public function create_walk_in(Request $request)

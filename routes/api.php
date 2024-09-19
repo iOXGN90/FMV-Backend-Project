@@ -2,25 +2,22 @@
 
 
 // Start Import
-
-    use App\Http\Controllers\API\WalkInController;
-    use Illuminate\Http\Request;
     use Illuminate\Support\Facades\Route;
     use App\Http\Controllers\API\CategoryController;
     use App\Http\Controllers\API\UserTypeController;
     use App\Http\Controllers\API\UserController;
-    use App\Http\Controllers\API\LoginController;
     use App\Http\Controllers\API\PurchaseOrderController;
     use App\Http\Controllers\API\ProductRestockController;
     use App\Http\Controllers\API\ProductController;
-    use App\Http\Controllers\api\DeliveryController;
-    use App\Http\Controllers\api\SaleTypeController;
-    use App\Http\Controllers\api\AssignEmployeeController;
-    use App\Http\Controllers\api\ViewDeliveries;
-    use App\Http\Controllers\api\ViewDamages;
-    use App\Http\Controllers\api\ViewDeliveryPurchaseOrder;
-    use App\Http\Controllers\api\ViewWalkinPurchaseOrder;
-
+    use App\Http\Controllers\API\DeliveryController;
+    use App\Http\Controllers\API\SaleTypeController;
+    use App\Http\Controllers\API\Deliveries_View;
+    use App\Http\Controllers\API\Delivery_ViewDamages;
+    use App\Http\Controllers\API\PurchaseOrder_AssignEmployeeController;
+    use App\Http\Controllers\API\PurchaseOrder_ViewDeliveries;
+    use App\Http\Controllers\API\PurchaseOrder_ViewWalkIns;
+    use App\Http\Controllers\API\PurchaseOrder_WalkIn;
+    use App\Http\Controllers\API\PurchaseOrder_AdminConfirms;
 // End Import
 
 /*
@@ -70,26 +67,26 @@
 //* Start Purchase Order and Walk-in -- The Walk-in still uses the table of purchase-order table
 
     //! Start View All Purchase Order
-        Route::get('purchase-orders',[ViewDeliveryPurchaseOrder::class, 'index']); //No filter
-        Route::get('purchase-orders-delivery', [ViewDeliveryPurchaseOrder::class, 'index_purchase_order']);
-        Route::get('purchase-orders-delivery-pending', [ViewDeliveryPurchaseOrder::class, 'pending_purchase_order']);
-        Route::get('purchase-orders-delivery/{id}', [PurchaseOrderController::class, 'show_purchase_order']);
+        Route::get('purchase-orders',[PurchaseOrder_ViewDeliveries::class, 'index']); //No filter
+        Route::get('purchase-orders-delivery', [PurchaseOrder_ViewDeliveries::class, 'index_purchase_order']);
+        Route::get('purchase-orders-delivery-pending', [PurchaseOrder_ViewDeliveries::class, 'pending_purchase_order']);
+        Route::get('purchase-orders-delivery/{id}', [PurchaseOrder_ViewDeliveries::class, 'show_purchase_order']);
 
-        Route::get('purchase-orders-walk-in', [ViewWalkinPurchaseOrder::class, 'index_walk_in']);
+        Route::get('purchase-orders-walk-in', [PurchaseOrder_ViewWalkIns::class, 'index_walk_in']);
     //! End View All Purchase Order
 
     //! Start Delivery
-        Route::post('purchase-orders-delivery', [PurchaseOrderController::class, 'create_purchase_order']);
+        Route::post('purchase-orders-delivery', [PurchaseOrderController::class, 'create_purchase_order_delivery']);
         Route::put('purchase-orders-delivery', [PurchaseOrderController::class, 'update']);
     //! End Delivery
 
     //! Start Walk in
-        Route::post('purchase-orders-walk-in', [WalkInController::class, 'create_walk_in']);
+        Route::post('purchase-orders-walk-in', [PurchaseOrder_WalkIn::class, 'create_walk_in']);
     //! End Walk in
 
     //! Start Assign Delivery
-        Route::post('assign-employee', [AssignEmployeeController::class, 'assign_employee']);
-        Route::post('remove-employee', [AssignEmployeeController::class, 'remove_assigned_employee']);
+        Route::post('assign-employee', [PurchaseOrder_AssignEmployeeController::class, 'assign_employee']);
+        Route::post('remove-employee', [PurchaseOrder_AssignEmployeeController::class, 'remove_assigned_employee']);
     //! End Assign Delivery
 
     //! Start Delivery Update - delivery man is assigned to its purchase-order, this route will be initiated by the delivery man depending on its "status"!!!
@@ -97,11 +94,16 @@
     //! End Delivery Update
 
     //! Start Get Pending/Success User Delivery
-        Route::get('my-deliveries/pending', [ViewDeliveries::class, 'pending_deliveries']);
-        Route::get('my-deliveries/on-delivery', [ViewDeliveries::class, 'on_delivery']);
-        Route::get('my-deliveries/successful', [ViewDeliveries::class, 'successful_deliveries']);
-        Route::get('my-deliveries/failed', [ViewDeliveries::class, 'failed_deliveries']);
+        Route::get('my-deliveries/pending', [Deliveries_View::class, 'pending_deliveries']);
+        Route::get('my-deliveries/on-delivery', [Deliveries_View::class, 'on_delivery']);
+        Route::get('my-deliveries/successful', [Deliveries_View::class, 'successful_deliveries']);
+        Route::get('my-deliveries/failed', [Deliveries_View::class, 'failed_deliveries']);
     //! End Get Pending/Success User Delivery
+
+    //! Start Admin Initiates if Success or Failed
+        Route::put('purchase-orders-admin-update/{id}', [PurchaseOrder_AdminConfirms::class, 'update_to_success']);
+    //! End Admin Initiates if Success or Failed
+
 
 //* End Purchase Order and Walk-in
 
@@ -119,8 +121,8 @@
 // End Product ReStocks
 
 // Start View Damages
-    Route::get('damages', [ViewDamages::class, 'index']);
-    Route::get('damages/filter-by-delivery', [ViewDamages::class, 'filterByDelivery']);
+    Route::get('damages', [Delivery_ViewDamages::class, 'index']);
+    Route::get('damages/filter-by-delivery', [Delivery_ViewDamages::class, 'filterByDelivery']);
 // End View Damages
 
 

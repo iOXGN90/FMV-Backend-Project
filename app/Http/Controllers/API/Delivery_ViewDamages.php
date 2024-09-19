@@ -5,7 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Models\Damage;
 use Illuminate\Http\Request;
 
-class ViewDamages extends BaseController
+class Delivery_ViewDamages extends BaseController
 {
     // Method to get all damages
     public function index()

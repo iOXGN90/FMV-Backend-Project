@@ -2,22 +2,26 @@
 
 namespace App\Http\Controllers\API;
 
-use app\Models\PurchaseOrder;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Models\PurchaseOrder;
+use Carbon\Carbon;
 
 
-class ViewDeliveryPurchaseOrder extends BaseController
+class PurchaseOrder_ViewDeliveries extends BaseController
 {
-    /**
-     *! ------------- Start *VIEW* Purchase Order - Delivery -----------------
-     */
-
     // Get Purchase Order Records
-    public function index()
+
+    public function show_purchase_order($id)
     {
-        $purchaseOrders = PurchaseOrder::with('address', 'productDetails')->get();
-        return response()->json($purchaseOrders);
+        $purchaseOrder = PurchaseOrder::with('address', 'productDetails')
+            ->where('sale_type_id', 1)  //? This condition for sale_type_id = 1
+            ->find($id);
+
+        if (is_null($purchaseOrder)) {
+            return response()->json(['message' => 'Delivery [Purchase Order] is not found'], 404);
+        }
+
+        return response()->json($purchaseOrder);
     }
 
     // Get all Purchase Orders
@@ -98,46 +102,4 @@ class ViewDeliveryPurchaseOrder extends BaseController
 
         return response()->json($formattedOrders);
     }
-
-    // Get a specific purchase order by ID
-    public function show_purchase_order($id)
-    {
-        $purchaseOrder = PurchaseOrder::with('address', 'productDetails')->find($id);
-
-        if (is_null($purchaseOrder)) {
-            return response()->json(['message' => 'Purchase Order not found'], 404);
-        }
-
-        return response()->json($purchaseOrder);
-    }
-
 }
-    /**
-     *! ------------- End *VIEW* Purchase Order - Delivery -----------------
-     */
-
-    /**
-     *! ------------- Start *VIEW* Purchase Order - Walkin -------------------
-    *
-    */
-
-        Class ViewWalkinPurchaseOrder extends BaseController
-        {
-            //* Start View WalkIn
-                public function index_walk_in()
-                {
-                    // Filter and get all walk-in orders where sale_type_id is 2
-                    $walkInOrders = PurchaseOrder::with(['address', 'productDetails.product'])
-                        ->where('sale_type_id', 2)
-                        ->get();
-
-                    return response()->json($walkInOrders);
-                }
-            //* End View WalkIn
-        }
-
-
-    /**
-     *! ---------------- End *VIEW* Purchase Order - Walkin -------------------
-     */
-
