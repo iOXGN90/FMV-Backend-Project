@@ -91,9 +91,13 @@
 
     //! Start Delivery Update - delivery man is assigned to its purchase-order, this route will be initiated by the delivery man depending on its "status"!!!
         Route::put('update-delivery/{id}', [DeliveryController::class, 'update_delivery']);
+        // Samples
+        Route::put('update-delivery-status-OD/{id}', [DeliveryController::class, 'update_delivery_status_OD']);
+        Route::put('update-delivery-status-P/{id}', [DeliveryController::class, 'update_delivery_status_P']);
     //! End Delivery Update
 
     //! Start Get Pending/Success User Delivery
+        Route::get('my-deliveries/sample', [Deliveries_View::class, 'sample']);
         Route::get('my-deliveries/pending', [Deliveries_View::class, 'pending_deliveries']);
         Route::get('my-deliveries/on-delivery', [Deliveries_View::class, 'on_delivery']);
         Route::get('my-deliveries/successful', [Deliveries_View::class, 'successful_deliveries']);
@@ -104,6 +108,9 @@
         Route::put('purchase-orders-admin-update/{id}', [PurchaseOrder_AdminConfirms::class, 'update_to_success']);
     //! End Admin Initiates if Success or Failed
 
+    //! View remaining quantity to deliver
+        Route::get('my-deliveries/remaining-balance/{id}', [PurchaseOrder_ViewDeliveries::class,'getRemainingToDeliver']);
+    //! View remaining quantity to deliver
 
 //* End Purchase Order and Walk-in
 

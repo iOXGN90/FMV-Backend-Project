@@ -12,9 +12,12 @@ class ProductDetail extends Model
     protected $guarded = [];
 
     // Start Foreign Key Connection
-        public function product(){
+        public function product()
+        {
             return $this->belongsTo(Product::class);
         }
+
+
         public function purchaseOrder(){
             return $this->belongsTo(PurchaseOrder::class);
         }

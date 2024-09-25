@@ -10,113 +10,118 @@ use App\Models\Damage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class DeliveryController extends BaseController
 {
-    // Get all deliveries
-    public function index()
+
+    public function update_delivery_status_OD($id, $newStatus = 'OD')
     {
-        $deliveries = Delivery::with('purchaseOrder', 'user', 'deliveryProducts.productDetail.product', 'images')->get();
-        return response()->json($deliveries);
+        // Perform a raw SQL update query
+        DB::update('UPDATE deliveries SET status = ? WHERE id = ?', [$newStatus, $id]);
+
+        return response()->json([
+            'message' => 'Delivery status updated successfully!',
+            'delivery_id' => $id,
+            'new_status' => $newStatus
+        ], 200);
+    }
+    public function update_delivery_status_P($id, $newStatus = 'P')
+    {
+        // Perform a raw SQL update query
+        DB::update('UPDATE deliveries SET status = ? WHERE id = ?', [$newStatus, $id]);
+
+        return response()->json([
+            'message' => 'Delivery status updated successfully!',
+            'delivery_id' => $id,
+            'new_status' => $newStatus
+        ], 200);
     }
 
     //! This code will run once the delivery man sends the status of the delivery
     // Update a specific delivery by ID
     public function update_delivery(Request $request, $id)
     {
+        // Validate the incoming request
         $validator = Validator::make($request->all(), [
             'delivery_no' => 'sometimes|integer',
             'notes' => 'sometimes|string',
             'status' => 'sometimes|in:P,F,S,OD',
-            'damages' => 'sometimes|array',
-            'damages.*.product_id' => 'required_with:damages|exists:products,id',
-            'damages.*.quantity' => 'required_with:damages|integer|min:1',
-            'images' => 'required_if:damages,exists|array',
-            'images.*' => 'sometimes|file|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'images' => 'sometimes|array', // Handle multiple images as an array
+            'images.*' => 'file|mimes:jpeg,png,jpg,gif,svg|max:2048', // Each image validation
         ]);
 
+        // Return validation errors if they occur
         if ($validator->fails()) {
             return response()->json($validator->errors(), 400);
         }
 
+        // Find the delivery record by its ID
         $delivery = Delivery::find($id);
 
+        // Check if the delivery record exists
         if (is_null($delivery)) {
             return response()->json(['message' => 'Delivery not found'], 404);
         }
 
         DB::beginTransaction();
         try {
-            // Update delivery details
+            // Update delivery details using Eloquent
             $dataToUpdate = $request->only(['delivery_no', 'notes', 'status']);
-            if (!isset($dataToUpdate['status'])) {
-                $dataToUpdate['status'] = 'P'; // Automatically set status to 'P' by default
-            }
 
+            // Always set 'P', regardless of user input
+            $dataToUpdate['status'] = 'P';
+
+            // Perform the update on the Eloquent model
             $delivery->update($dataToUpdate);
 
-            // Handle damages if reported
-            if ($request->has('damages')) {
-                foreach ($request->input('damages') as $damageData) {
-                    $deliveryProduct = DeliveryProduct::where('delivery_id', $delivery->id)
-                        ->where('product_id', $damageData['product_id'])
-                        ->first();
+            // Handle multiple image uploads
+            // Handle multiple image uploads
+            if ($request->hasFile('images')) {
+                $imagePaths = [];
+                foreach ($request->file('images') as $image) {
+                    // Log image info to check if files are being processed
+                    Log::info("Processing image: " . $image->getClientOriginalName());
 
-                    if (!$deliveryProduct) {
-                        throw new \Exception('Product not found in delivery');
-                    }
+                    $imageName = time() . '_' . $image->getClientOriginalName();
+                    $image->storeAs('public/images', $imageName);
+                    $imagePath = 'storage/images/' . $imageName;
 
-                    // Create a damage record
-                    Damage::create([
-                        'delivery_id' => $delivery->id,
-                        'delivery_products_id' => $deliveryProduct->id,
-                        'no_of_damages' => $damageData['quantity'],
-                    ]);
-                }
-            }
+                    // Log the image path before saving
+                    Log::info("Image path: " . $imagePath);
 
-            // Handle image uploads
-            if ($request->has('images')) {
-                foreach ($request->file('images') as $imageFile) {
-                    $path = $imageFile->store('images', 'public');
+                    // Store each image path in the database using Eloquent
                     Image::create([
-                        'delivery_id' => $delivery->id,
-                        'image_url' => $path
+                        'delivery_id' => $delivery->id, // Use the delivery's ID from the Eloquent model
+                        'image_url' => $imagePath,
                     ]);
                 }
             }
 
-            // Check if all product quantities have been delivered
-            $purchaseOrder = $delivery->purchaseOrder;
-            $allDelivered = true;
-
-            foreach ($purchaseOrder->productDetails as $productDetail) {
-                $deliveredQuantity = DeliveryProduct::whereHas('delivery', function ($query) use ($purchaseOrder) {
-                    $query->where('purchase_order_id', $purchaseOrder->id);
-                })->where('product_details_id', $productDetail->id)
-                ->sum('quantity');
-
-                $remainingQuantity = $productDetail->quantity - $deliveredQuantity;
-
-                if ($remainingQuantity > 0) {
-                    $allDelivered = false;
-                    break;
-                }
-            }
-
-            // If all products are delivered, update the purchase order status to 'S'
-            if ($allDelivered) {
-                $purchaseOrder->update(['status' => 'S']);
-            }
 
             DB::commit();
-            return response()->json($delivery->load(['purchaseOrder', 'user', 'deliveryProducts.productDetail.product', 'damages', 'images']));
+
+            // Reload the delivery to include images in the response
+            $delivery = $delivery->load('images');
+
+            // Log the loaded delivery images
+            Log::info($delivery->images);
+
+            // Return a success message along with the updated delivery and its images
+            return response()->json([
+                'message' => 'Delivery updated successfully!',
+                'delivery' => $delivery, // Returning the updated delivery with images
+            ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Error occurred while updating the delivery: ' . $e->getMessage()], 500);
         }
     }
+
+
+
+
 
 
     // Get a specific delivery by ID
@@ -196,5 +201,16 @@ class DeliveryController extends BaseController
              ->get();
 
          return response()->json($deliveries);
+     }
+
+
+     private function logImageDetails($image, $path)
+     {
+         Log::info('Image uploaded:', [
+             'original_name' => $image->getClientOriginalName(), // Log original file name
+             'size' => $image->getSize(), // Log size in bytes
+             'mime_type' => $image->getClientMimeType(), // Log mime type (e.g., image/jpeg)
+             'stored_path' => $path // Log the path where the image is stored
+         ]);
      }
 }

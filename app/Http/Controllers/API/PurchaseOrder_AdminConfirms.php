@@ -7,7 +7,7 @@ use App\Models\PurchaseOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class PurchaseOrder_AdminConfirms
+class PurchaseOrder_AdminConfirms extends BaseController
 {
     public function update_to_success(Request $request, $id)
     {

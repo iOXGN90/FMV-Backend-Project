@@ -9,7 +9,7 @@ class Image extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = ['delivery_id', 'image_url'];
 
     // Start Foreign Key Connection
 

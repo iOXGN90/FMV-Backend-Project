@@ -24,7 +24,7 @@ class Delivery extends Model
 
     public function images()
     {
-        return $this->hasMany(Image::class);
+        return $this->hasMany(Image::class, 'delivery_id');
     }
 
     public function deliveryProducts()

@@ -42,9 +42,9 @@ class PurchaseOrder_AssignEmployeeController extends BaseController
             }
 
             // Check if the user being assigned is an employee
-            if ($employee->user_type_id != 2) {
-                return response()->json(['error' => 'The user being assigned must be an employee'], 403);
-            }
+            // if ($employee->user_type_id != 2) {
+            //     return response()->json(['error' => 'The user being assigned must be an employee'], 403);
+            // }
 
             DB::beginTransaction();
             try {
@@ -126,9 +126,10 @@ class PurchaseOrder_AssignEmployeeController extends BaseController
                 // Return the response with delivery details
                 return response()->json([
                     'message' => 'Employee assigned and product quantity updated successfully',
+                    'delivery_id' => $delivery->id,
                     'Delivery Man Name' => $employee->name,
                     'Purchase Order ID' => $purchaseOrder->id,
-                    'status' => 'Product(s) on Deliver',
+                    'status' => 'OD',
                     'delivery_details' => $deliveryDetails
                 ], 200);
 
