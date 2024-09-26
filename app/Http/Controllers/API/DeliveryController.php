@@ -27,16 +27,30 @@ class DeliveryController extends BaseController
             'new_status' => $newStatus
         ], 200);
     }
-    public function update_delivery_status_P($id, $newStatus = 'P')
+    public function update_delivery_status_P(Request $request, $id)
     {
-        // Perform a raw SQL update query
-        DB::update('UPDATE deliveries SET status = ? WHERE id = ?', [$newStatus, $id]);
+        $validator = Validator::make($request->all(), [
+        'status' => 'required|in:P,F,S,OD', // Validating status input
+        'notes' => 'nullable|string',      // Allow notes to be null or string
+    ]);
 
-        return response()->json([
-            'message' => 'Delivery status updated successfully!',
-            'delivery_id' => $id,
-            'new_status' => $newStatus
-        ], 200);
+    if ($validator->fails()) {
+        return response()->json($validator->errors(), 400);
+    }
+
+    // Extract status and notes from the request
+    $newStatus = 'P';
+    $notes = $request->input('notes');
+
+    // Perform a raw SQL update query to update both status and notes
+    DB::update('UPDATE deliveries SET status = ?, notes = ? WHERE id = ?', [$newStatus, $notes, $id]);
+
+    return response()->json([
+        'message' => 'Delivery status and notes updated successfully!',
+        'delivery_id' => $id,
+        'new_status' => $newStatus,
+        'notes' => $notes
+    ], 200);
     }
 
     //! This code will run once the delivery man sends the status of the delivery

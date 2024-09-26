@@ -9,6 +9,7 @@ use App\Models\ProductDetail;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rules\Unique;
 
 class Deliveries_View extends BaseController
 {
@@ -101,52 +102,27 @@ class Deliveries_View extends BaseController
         return $this->get_employees_with_deliveries_by_status('F');
     }
 
-    public function sample(){
-        // $sample = DB::table('deliveries as a')
-        // ->join('users as b', 'b.id', '=', 'a.user_id')
-        // ->join('purchase_orders as c', 'c.id', '=', 'a.purchase_order_id')
-        // ->join('delivery_products as d', 'a.id', '=', 'd.delivery_id')
-        // ->join('product_details as e', 'c.id', '=', 'e.purchase_order_id')
-        // ->join('products as f', 'f.id', '=', 'e.product_id')
-        // ->select(
-        //     'a.id as delivery_id',
-        //     'b.id as deliveryman_id',
-        //     'b.name as deliveryman_name',
-        //     'c.id as purchase_order_id',
-        //     'c.customer_name',
-        //     'd.quantity',
-        //     'e.price',
-        //     'f.id as product_id',
-        //     'f.product_name'
-        // )
-        // // ->where('b.user_type_id', '=', '2')
-        // ->where('a.status', '=', 'OD')
-        // ->orderBy('c.id')
-        // ->get();
+    // public function sample() {
+    //     $results = DB::table('products as a')
+    //     ->join('product_details as b', 'b.product_id', '=', 'a.id')
+    //     ->join('purchase_orders as c', 'c.id', '=', 'b.purchase_order_id')
+    //     ->join('deliveries as d', 'c.id', '=', 'd.purchase_order_id')
+    //     ->join('delivery_products as e', 'e.delivery_id', '=', 'd.id')
+    //     ->select(
+    //         'c.id as purchase_order_id',
+    //         'c.customer_name',
+    //         'd.id as delivery_id',
+    //         'a.id as product_id',
+    //         'a.product_name'
+    //     )
+    //     ->where('d.status', '=', 'OD')
+    //     ->distinct() // Ensures that only distinct records are returned
+    //     ->orderBy('c.id')
+    //     ->get();
 
-        // $groupedOrders = $sample->groupBy('purchase_order_id');
+    // return response()->json($results);
+    // }
 
-        // $properFormat = $groupedOrders->map(function($orderedGroup){
-        //     $firstOrder = $orderedGroup->first();
-        //     return [
-        //         'purchase_order_id' => $firstOrder->purchase_order_id,
-        //         'delivery_id' => $firstOrder->delivery_id,
-        //         'deliveryman_id' => $firstOrder->deliveryman_id,
-        //         'deliveryman_name' => $firstOrder->deliveryman_name,
-        //         'customer_name' => $firstOrder->customer_name,
-        //         'products' => $orderedGroup->map(function($item){
-        //             return[
-        //                 'product_id' => $item->product_id,
-        //                 'product_name' => $item->product_name,
-        //                 'quantity' => $item->quantity,
-        //                 'price' => $item->price
-        //             ];
-        //         })->toArray(),
-        //     ];
-        // });
-
-        // return response()->json($properFormat->values());
-    }
 
 
     public function on_delivery()
@@ -169,8 +145,8 @@ class Deliveries_View extends BaseController
                 'f.id as product_id',
                 'f.product_name'
             )
-            // ->where('b.user_type_id', '=', '2')
             ->where('a.status', '=', 'OD')
+            // ->distinct() // Ensures that only distinct records are returned
             ->orderBy('c.id')
             ->get();
 
@@ -192,7 +168,10 @@ class Deliveries_View extends BaseController
                             'quantity' => $item->quantity,
                             'price' => $item->price
                         ];
-                    })->toArray(),
+                    })
+                    ->unique('product_id')
+                    ->values()
+                    ->toArray(),
                 ];
             });
 

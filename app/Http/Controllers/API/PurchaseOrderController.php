@@ -78,7 +78,7 @@ class PurchaseOrderController extends BaseController
 
         // Format the response to match `index_purchase_order`
         $formattedOrder = [
-            'id' => $purchaseOrder->id,
+            'purchase_order_id' => $purchaseOrder->id,
             'user_id' => $purchaseOrder->user_id,
             'address_id' => $purchaseOrder->address_id,
             'sale_type_id' => $purchaseOrder->sale_type_id,

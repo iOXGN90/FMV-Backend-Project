@@ -127,8 +127,8 @@ class PurchaseOrder_AssignEmployeeController extends BaseController
                 return response()->json([
                     'message' => 'Employee assigned and product quantity updated successfully',
                     'delivery_id' => $delivery->id,
-                    'Delivery Man Name' => $employee->name,
-                    'Purchase Order ID' => $purchaseOrder->id,
+                    'delivery Man Name' => $employee->name,
+                    'purchase Order ID' => $purchaseOrder->id,
                     'status' => 'OD',
                     'delivery_details' => $deliveryDetails
                 ], 200);
