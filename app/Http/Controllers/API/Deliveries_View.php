@@ -71,7 +71,9 @@ class Deliveries_View extends BaseController
                         'product_name' => $product->product_name,
                         'quantity' => $product->quantity
                     ];
-                })->toArray()
+                })
+                ->unique('product_id') //! <---- This will choose unique data of product id; clone data will be disregard
+                ->toArray()
             ];
         } else if ($firstDeliveryData->status === 'S') {
             // Logic for when status is not 'P' (if needed)
@@ -146,7 +148,7 @@ class Deliveries_View extends BaseController
                 'f.product_name'
             )
             ->where('a.status', '=', 'OD')
-            // ->distinct() // Ensures that only distinct records are returned
+            // ->distinct() //! <--- This will choose data that are unique; same data will be not shown
             ->orderBy('c.id')
             ->get();
 
@@ -169,7 +171,7 @@ class Deliveries_View extends BaseController
                             'price' => $item->price
                         ];
                     })
-                    ->unique('product_id')
+                    ->unique('product_id') //! <---- This will choose unique data of product id; clone data will be disregard
                     ->values()
                     ->toArray(),
                 ];

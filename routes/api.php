@@ -18,6 +18,8 @@
     use App\Http\Controllers\API\PurchaseOrder_ViewWalkIns;
     use App\Http\Controllers\API\PurchaseOrder_WalkIn;
     use App\Http\Controllers\API\PurchaseOrder_AdminConfirms;
+use App\Models\Delivery;
+
 // End Import
 
 /*
@@ -64,7 +66,7 @@
 // End Sale Type
 
 
-//* Start Purchase Order and Walk-in -- The Walk-in still uses the table of purchase-order table
+//* Start Purchase Order | Delivery and Walk-in -- The Walk-in still uses the table of purchase-order table
 
     //! Start View All Purchase Order
         Route::get('purchase-orders',[PurchaseOrder_ViewDeliveries::class, 'index']); //No filter
@@ -75,14 +77,14 @@
         Route::get('purchase-orders-walk-in', [PurchaseOrder_ViewWalkIns::class, 'index_walk_in']);
     //! End View All Purchase Order
 
-    //! Start Delivery
-        Route::post('purchase-orders-delivery', [PurchaseOrderController::class, 'create_purchase_order_delivery']);
-        Route::put('purchase-orders-delivery', [PurchaseOrderController::class, 'update']);
-    //! End Delivery
+        // Start Purchase Order - Delivery
+            Route::post('purchase-orders-delivery', [PurchaseOrderController::class, 'create_purchase_order_delivery']);
+            Route::put('purchase-orders-delivery', [PurchaseOrderController::class, 'update']);
+        // End Delivery
 
-    //! Start Walk in
-        Route::post('purchase-orders-walk-in', [PurchaseOrder_WalkIn::class, 'create_walk_in']);
-    //! End Walk in
+        // Start Walk in
+            Route::post('purchase-orders-walk-in', [PurchaseOrder_WalkIn::class, 'create_walk_in']);
+        // End Walk in
 
     //! Start Assign Delivery
         Route::post('assign-employee', [PurchaseOrder_AssignEmployeeController::class, 'assign_employee']);
@@ -91,9 +93,13 @@
 
     //! Start Delivery Update - delivery man is assigned to its purchase-order, this route will be initiated by the delivery man depending on its "status"!!!
         Route::put('update-delivery/{id}', [DeliveryController::class, 'update_delivery']);
-        // Samples
-        Route::put('update-delivery-status-OD/{id}', [DeliveryController::class, 'update_delivery_status_OD']);
-        Route::put('update-delivery-status-P/{id}', [DeliveryController::class, 'update_delivery_status_P']);
+
+        //? Start - Samples - TEST AREA
+            Route::post('upload-image', [DeliveryController::class, 'sample_upload'])->name('image.upload');
+            Route::put('update-delivery-status-OD/{id}', [DeliveryController::class, 'update_delivery_status_OD']);
+            Route::put('update-delivery-status-P/{id}', [DeliveryController::class, 'update_delivery_status_P']);
+        //? END
+
     //! End Delivery Update
 
     //! Start Get Pending/Success User Delivery
@@ -104,15 +110,15 @@
         Route::get('my-deliveries/failed', [Deliveries_View::class, 'failed_deliveries']);
     //! End Get Pending/Success User Delivery
 
-    //! Start Admin Initiates if Success or Failed
+    //! Start Admin Initiates - Admin Reviews
         Route::put('purchase-orders-admin-update/{id}', [PurchaseOrder_AdminConfirms::class, 'update_to_success']);
-    //! End Admin Initiates if Success or Failed
+    //! End Admin Initiates - Admin Reviews
 
     //! View remaining quantity to deliver
         Route::get('my-deliveries/remaining-balance/{id}', [PurchaseOrder_ViewDeliveries::class,'getRemainingToDeliver']);
     //! View remaining quantity to deliver
 
-//* End Purchase Order and Walk-in
+//* End Purchase Order | Delivery and Walk-in
 
 // Start Product
     Route::post('products', [ProductController::class, 'create']);
