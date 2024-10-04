@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Psy\Readline\Hoa\Console;
 
 class DeliveryController extends BaseController
 {
@@ -84,87 +85,97 @@ class DeliveryController extends BaseController
     //! This code will run once the delivery man sends the status of the delivery
     // Update a specific delivery by ID
     public function update_delivery(Request $request, $id)
-{
-    // Validate the incoming request
-    $validator = Validator::make($request->all(), [
-        'delivery_no' => 'sometimes|integer',
-        'notes' => 'sometimes|string',
-        'status' => 'sometimes|in:P,F,S,OD',
-        'images' => 'sometimes|array', // Handle multiple images as an array
-        'images.*' => 'file|mimes:jpeg,png,jpg,gif,svg|max:2048', // Each image validation
-    ]);
+    {
+        // DB::update('UPDATE deliveries SET notes = ? WHERE id = ?', [
+        //     $request->input('notes'), $id
+        // ]);
 
-    // Return validation errors if they occur
-    if ($validator->fails()) {
-        return response()->json($validator->errors(), 400);
-    }
+        // return response()->json([
+        //     'message' => 'Delivery updated successfully!',
+        //     'inputted_notes' => $request->input('notes')  // Reflect the updated notes back in the response
+        // ]);
 
-    // Start a database transaction
-    DB::beginTransaction();
-    try {
-        // Check if the delivery exists using raw SQL
-        $delivery = DB::select('SELECT * FROM deliveries WHERE id = ?', [$id]);
-
-        if (empty($delivery)) {
-            return response()->json(['message' => 'Delivery not found'], 404);
-        }
-
-        // Update delivery details using raw SQL
-        $dataToUpdate = $request->only(['delivery_no', 'notes', 'status']);
-        $dataToUpdate['status'] = 'P'; // Always set 'P'
-
-        DB::update('UPDATE deliveries SET delivery_no = ?, notes = ?, status = ? WHERE id = ?', [
-            $dataToUpdate['delivery_no'] ?? $delivery[0]->delivery_no,
-            $dataToUpdate['notes'] ?? $delivery[0]->notes,
-            $dataToUpdate['status'],
-            $id,
+        // Validate the incoming request
+        $validator = Validator::make($request->all(), [
+            'notes' => 'required|string',
+            'url' => 'sometimes|file|mimes:jpeg,png,jpg,gif,svg|max:2048', // Single image validation
         ]);
 
-        // Handle multiple image uploads
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                // Log image info to check if files are being processed
-                Log::info("Processing image: " . $image->getClientOriginalName());
-
-                // Create a unique name for the image
-                $imageName = time() . '_' . $image->getClientOriginalName();
-                $image->storeAs('public/images', $imageName); // Store the image in 'storage/app/public/images'
-
-                // Make sure the correct URL path is used (accessible via 'storage/')
-                $imageUrl = 'storage/images/' . $imageName;
-
-                // Insert the image record using raw SQL
-                DB::insert('INSERT INTO images (delivery_id, image_url, date) VALUES (?, ?, NOW())', [
-                    $id, // Use the delivery's ID
-                    $imageUrl, // Image URL path
-                ]);
-            }
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
         }
 
-        DB::commit();
+        // Start a database transaction
+        DB::beginTransaction();
+        try {
+            // Check if the delivery exists
+            $delivery = Delivery::find($id);
+            if (!$delivery) {
+                return response()->json(['message' => 'Delivery not found'], 404);
+            }
 
-        // Reload the delivery with images using raw SQL
-        $deliveryWithImages = DB::select('
-            SELECT d.*, i.image_url
-            FROM deliveries d
-            LEFT JOIN images i ON d.id = i.delivery_id
-            WHERE d.id = ?
-        ', [$id]);
+            // Update notes
+            $delivery->notes = $request->input('notes');
+            $delivery->status = 'P';
 
-        // Log the loaded delivery images
-        Log::info($deliveryWithImages);
+            // Handle single image upload
+            if ($request->hasFile('url') && $id) {
+                $file = $request->file('url');
+                $imageName = time() . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path('images'), $imageName);
 
-        // Return a success message along with the updated delivery and its images
-        return response()->json([
-            'message' => 'Delivery updated successfully!',
-            'delivery' => $deliveryWithImages,
-        ], 200);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json(['error' => 'Error occurred while updating the delivery: ' . $e->getMessage()], 500);
+                // Assuming Image model is correctly set up to handle delivery_id
+                $image = new Image();
+                $image->url = 'images/' . $imageName;
+                $image->delivery_id = $id;  // ensure this is not null
+                $image->save();
+            }
+
+            $delivery->save();
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Delivery updated successfully!',
+                'delivery' => $delivery,
+                'changed_status' => 'P',
+                'image' => $image // Add the image response
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Error occurred while updating the delivery: ' . $e->getMessage()], 500);
+        }
     }
-}
 
+
+    private function uploadImage($file, $delivery)
+    {
+        try {
+            $imageName = time() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('images'), $imageName);
+            $delivery->image_url = 'images/' . $imageName; // Ensure 'image_url' is your database column
+            return ['success' => true];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+
+
+//     public function uploadImage($file, $delivery_id) {
+//         $imageName = time() . '.' . $file->getClientOriginalExtension();
+//         $file->move(public_path('images'), $imageName); // Moves file to public/images
+
+//         $delivery = Delivery::find($delivery_id);
+//         if ($delivery) {
+//             $delivery->image_url = 'images/' . $imageName;
+//             $delivery->save();
+//         }
+//         return [
+//             'success' => true,
+//             'image_url' => asset('images/' . $imageName),
+//         ];
+// }
 
 
     // Get a specific delivery by ID

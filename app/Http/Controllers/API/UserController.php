@@ -147,28 +147,28 @@ class UserController extends BaseController
      */
 
      public function login(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'username' => 'required|string|max:255',
-        'password' => 'required|string|min:5',
-    ]);
+    {
+        $validator = Validator::make($request->all(), [
+            'username' => 'required|string|max:255',
+            'password' => 'required|string|min:5',
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json(['error' => $validator->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()], 422);
+        }
+
+        $credentials = $request->only('username', 'password');
+
+        if (!Auth::attempt($credentials)) {
+            return response()->json(['error' => 'Invalid credentials'], 401);
+        }
+
+        /** @var \App\Models\User $user **/
+        $user = Auth::user();
+        $token = $user->createToken('MyApp')->accessToken;
+
+        return response()->json(['success' => 'User logged in successfully.', 'token' => $token, 'user' => $user], 200);
     }
-
-    $credentials = $request->only('username', 'password');
-
-    if (!Auth::attempt($credentials)) {
-        return response()->json(['error' => 'Invalid credentials'], 401);
-    }
-
-    /** @var \App\Models\User $user **/
-    $user = Auth::user();
-    $token = $user->createToken('MyApp')->accessToken;
-
-    return response()->json(['success' => 'User logged in successfully.', 'token' => $token, 'user' => $user], 200);
-}
 
  // End LOGIN
 

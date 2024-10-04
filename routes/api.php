@@ -18,7 +18,9 @@
     use App\Http\Controllers\API\PurchaseOrder_ViewWalkIns;
     use App\Http\Controllers\API\PurchaseOrder_WalkIn;
     use App\Http\Controllers\API\PurchaseOrder_AdminConfirms;
+use App\Http\Controllers\API\Test\UploadImage;
 use App\Models\Delivery;
+use App\Models\PurchaseOrder;
 
 // End Import
 
@@ -73,9 +75,10 @@ use App\Models\Delivery;
         Route::get('purchase-orders-delivery', [PurchaseOrder_ViewDeliveries::class, 'index_purchase_order']);
         Route::get('purchase-orders-delivery-pending', [PurchaseOrder_ViewDeliveries::class, 'pending_purchase_order']);
         Route::get('purchase-orders-delivery/{id}', [PurchaseOrder_ViewDeliveries::class, 'show_purchase_order']);
+        Route::get('purchase-orders-delivery-product-left/{id}', [PurchaseOrder_ViewDeliveries::class, 'getRemainingToDeliver']);
 
         Route::get('purchase-orders-walk-in', [PurchaseOrder_ViewWalkIns::class, 'index_walk_in']);
-    //! End View All Purchase Order
+        //! End View All Purchase Order
 
         // Start Purchase Order - Delivery
             Route::post('purchase-orders-delivery', [PurchaseOrderController::class, 'create_purchase_order_delivery']);
@@ -92,7 +95,7 @@ use App\Models\Delivery;
     //! End Assign Delivery
 
     //! Start Delivery Update - delivery man is assigned to its purchase-order, this route will be initiated by the delivery man depending on its "status"!!!
-        Route::put('update-delivery/{id}', [DeliveryController::class, 'update_delivery']);
+        Route::post('/update-delivery/{id}', [DeliveryController::class, 'update_delivery']);
 
         //? Start - Samples - TEST AREA
             Route::post('upload-image', [DeliveryController::class, 'sample_upload'])->name('image.upload');
@@ -138,4 +141,6 @@ use App\Models\Delivery;
     Route::get('damages/filter-by-delivery', [Delivery_ViewDamages::class, 'filterByDelivery']);
 // End View Damages
 
+
+Route::post('sample-image', [UploadImage::class, 'store']);
 

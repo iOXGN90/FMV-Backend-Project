@@ -104,7 +104,31 @@ class Deliveries_View extends BaseController
         return $this->get_employees_with_deliveries_by_status('F');
     }
 
-    // public function sample() {
+
+//! TEST AREA ------------------
+    public function sample() {
+
+        $results = DB::table('delivery_products as a')
+        ->join('product_details as b', 'a.product_details_id', '=', 'a.id')
+        ->join('purchase_orders as c', 'b.purchase_order_id', '=', 'c.id')
+        ->join('products as d', 'b.product_id', '=', 'd.id')
+        ->join('deliveries as e', 'a.delivery_id', '=', 'a.id')
+        ->select(
+            'c.id as purchase_order_id',
+            'e.id as delivery_id',
+            'b.product_id',
+            'd.product_name',
+            'b.quantity as Total_Quantity',
+            'a.quantity as delivered_quantity'
+        )
+        // ->where('a.id', '=', $id)
+        ->where('c.sale_type_id', '=', 1)
+        ->distinct() //<--- is this a valid answer, GPT?
+        // ->groupBy('b.id', 'd.id', 'a.id', 'b.quantity', 'd.product_name')
+        ->orderBy('c.id')
+        ->get();
+        return response()->json($results);
+
     //     $results = DB::table('products as a')
     //     ->join('product_details as b', 'b.product_id', '=', 'a.id')
     //     ->join('purchase_orders as c', 'c.id', '=', 'b.purchase_order_id')
@@ -122,9 +146,8 @@ class Deliveries_View extends BaseController
     //     ->orderBy('c.id')
     //     ->get();
 
-    // return response()->json($results);
-    // }
-
+    }
+//! TEST AREA ------------------
 
 
     public function on_delivery()
@@ -148,6 +171,7 @@ class Deliveries_View extends BaseController
                 'f.product_name'
             )
             ->where('a.status', '=', 'OD')
+            // ->where('c.id', '=', 4)
             // ->distinct() //! <--- This will choose data that are unique; same data will be not shown
             ->orderBy('c.id')
             ->get();
