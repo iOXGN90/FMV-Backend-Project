@@ -17,6 +17,11 @@ This repository demonstrates how to set up a Laravel 10 REST API using Laravel P
 - Make sure you're in the file name you're into: `cd [your file name]`
 - After that, run ```composer require laravel/passport```
 - ```php artisan passport:install```
+- IF{
+    if the error is something about `personal access client`, install this:
+    - ```php artisan passport:client --personal```
+
+}
 
 2. **Configure Authentication:**
 In `config/auth.php`, update the API guard driver to use Passport:
