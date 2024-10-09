@@ -49,7 +49,7 @@ use App\Models\PurchaseOrder;
 // Start User
     Route::get('users', [UserController::class, 'index']);
     Route::post('users', [UserController::class, 'create']);
-    Route::get('users/{id}', [UserController::class, 'show']);
+    Route::get('users/{id}', [UserController::class, 'user_by_id']);
     Route::put('users/{id}', [UserController::class, 'update']);
     Route::delete('users/{id}', [UserController::class, 'destroy']);
 // End User
