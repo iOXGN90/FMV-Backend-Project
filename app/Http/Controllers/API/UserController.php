@@ -25,6 +25,21 @@ class UserController extends BaseController
 
         return response()->json(['success' => 'Users retrieved successfully.', 'data' => $users], 200);
     }
+
+    public function user_by_id($id): JsonResponse
+    {
+        // Use the find() method to get the user by ID
+        $user = User::find($id);
+
+        // If the user is not found, return a 404 response
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // Return the user data as JSON
+        return response()->json($user);
+    }
+
 // End VIEW ALL USER
 
 // Start CREATE USER

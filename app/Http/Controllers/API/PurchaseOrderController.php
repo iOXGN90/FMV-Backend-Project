@@ -123,6 +123,7 @@ class PurchaseOrderController extends BaseController
             'sale_type_id' => 'required|exists:sale_types,id',
             'address.street' => 'sometimes|required|string|max:255',
             'address.barangay' => 'sometimes|required|string|max:255',
+            'address.city' => 'sometimes|required|string|max:255',
             'address.zip_code' => 'sometimes|required|integer',
             'address.province' => 'sometimes|required|string|max:255',
             'product_details' => 'sometimes|array',

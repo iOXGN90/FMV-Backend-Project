@@ -41,6 +41,7 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                 'address' => [
                     'street' => $order->address->street,
                     'barangay' => $order->address->barangay,
+                    'city' => $order->address->city,
                     'zip_code' => $order->address->zip_code,
                     'province' => $order->address->province,
                 ],
