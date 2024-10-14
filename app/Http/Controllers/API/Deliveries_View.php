@@ -160,6 +160,7 @@ class Deliveries_View extends BaseController
             ->join('products as f', 'f.id', '=', 'e.product_id')
             ->select(
                 'a.id as delivery_id',
+                'a.delivery_no',
                 'a.status',
                 'b.id as deliveryman_id',
                 'b.name as deliveryman_name',
@@ -182,6 +183,8 @@ class Deliveries_View extends BaseController
                 $firstOrder = $orderedGroup->first();
                 return [
                     'purchase_order_id' => $firstOrder->purchase_order_id,
+                    'delivery_id' => $firstOrder->delivery_id,
+                    'delivery_no' => $firstOrder->delivery_no,
                     'delivery_id' => $firstOrder->delivery_id,
                     'deliveryman_id' => $firstOrder->deliveryman_id,
                     'deliveryman_name' => $firstOrder->deliveryman_name,
