@@ -162,6 +162,7 @@ class Deliveries_View extends BaseController
                 'a.id as delivery_id',
                 'a.delivery_no',
                 'a.status',
+                'a.created_at as date',
                 'b.id as deliveryman_id',
                 'b.name as deliveryman_name',
                 'c.id as purchase_order_id',
@@ -190,17 +191,18 @@ class Deliveries_View extends BaseController
                     'deliveryman_name' => $firstOrder->deliveryman_name,
                     'customer_name' => $firstOrder->customer_name,
                     'status' => $firstOrder->status,
+                    'date' => $firstOrder->date,
                     'products' => $orderedGroup->map(function($item){
                         return[
                             'product_id' => $item->product_id,
                             'product_name' => $item->product_name,
                             'quantity' => $item->quantity,
-                            'price' => $item->price
+                            'price' => $item->price,
                         ];
                     })
                     ->unique('product_id') //! <---- This will choose unique data of product id; clone data will be disregard
                     ->values()
-                    ->toArray(),
+                    ->toArray()
                 ];
             });
 
