@@ -162,7 +162,7 @@ class Deliveries_View extends BaseController
                 'a.id as delivery_id',
                 'a.delivery_no',
                 'a.status',
-                'a.created_at as date',
+                DB::raw("DATE_FORMAT(a.created_at, '%m/%d/%Y') as date"),  // Format date to MM/DD/YYYY
                 'b.id as deliveryman_id',
                 'b.name as deliveryman_name',
                 'c.id as purchase_order_id',
