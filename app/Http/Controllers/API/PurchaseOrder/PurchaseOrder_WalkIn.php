@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API\PurchaseOrder;
+
+use App\Http\Controllers\API\BaseController;
 
 use Illuminate\Http\Request;
 use App\Models\PurchaseOrder;

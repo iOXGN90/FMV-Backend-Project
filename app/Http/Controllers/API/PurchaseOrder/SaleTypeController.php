@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API\PurchaseOrder;
 
 use App\Models\SaleType;
 use Illuminate\Http\Request;
+use App\Http\Controllers\API\BaseController;
 
 class SaleTypeController extends BaseController
 {

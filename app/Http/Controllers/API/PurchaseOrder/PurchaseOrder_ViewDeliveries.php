@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API\PurchaseOrder;
 
 use App\Models\DeliveryProduct;
 use Illuminate\Http\Request;
 use App\Models\PurchaseOrder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\API\BaseController;
 
 class PurchaseOrder_ViewDeliveries extends BaseController
 {

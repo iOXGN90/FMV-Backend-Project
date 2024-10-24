@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API\Deliveries;
+
+use App\Http\Controllers\API\BaseController;
 
 use App\Models\Damage;
 use Illuminate\Http\Request;

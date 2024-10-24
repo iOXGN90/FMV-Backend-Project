@@ -3,24 +3,28 @@
 
 // Start Import
     use Illuminate\Support\Facades\Route;
-    use App\Http\Controllers\API\CategoryController;
-    use App\Http\Controllers\API\UserTypeController;
-    use App\Http\Controllers\API\UserController;
-    use App\Http\Controllers\API\PurchaseOrderController;
-    use App\Http\Controllers\API\ProductRestockController;
-    use App\Http\Controllers\API\ProductController;
-    use App\Http\Controllers\API\DeliveryController;
-    use App\Http\Controllers\API\SaleTypeController;
-    use App\Http\Controllers\API\Deliveries_View;
-    use App\Http\Controllers\API\Delivery_ViewDamages;
-    use App\Http\Controllers\API\PurchaseOrder_AssignEmployeeController;
-    use App\Http\Controllers\API\PurchaseOrder_ViewDeliveries;
-    use App\Http\Controllers\API\PurchaseOrder_ViewWalkIns;
-    use App\Http\Controllers\API\PurchaseOrder_WalkIn;
-    use App\Http\Controllers\API\PurchaseOrder_AdminConfirms;
-use App\Http\Controllers\API\Test\UploadImage;
-use App\Models\Delivery;
-use App\Models\PurchaseOrder;
+    use App\Http\Controllers\API\User\UserTypeController;
+    use App\Http\Controllers\API\User\UserController;
+
+    use App\Http\Controllers\API\Product\CategoryController;
+    use App\Http\Controllers\API\Product\ProductRestockController;
+    use App\Http\Controllers\API\Product\ProductController;
+
+    use App\Http\Controllers\API\Deliveries\DeliveryController;
+    use App\Http\Controllers\API\Deliveries\Deliveries_View;
+    use App\Http\Controllers\API\Deliveries\Delivery_ViewDamages;
+
+    use App\Http\Controllers\API\PurchaseOrder\SaleTypeController;
+    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrderController;
+    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AssignEmployeeController;
+    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_ViewDeliveries;
+    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_ViewWalkIns;
+    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_WalkIn;
+    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AdminConfirms;
+
+    use App\Http\Controllers\API\Test\UploadImage;
+    use App\Models\Delivery;
+    use App\Models\PurchaseOrder;
 
 // End Import
 
@@ -111,7 +115,9 @@ use App\Models\PurchaseOrder;
         Route::get('my-deliveries/on-delivery', [Deliveries_View::class, 'on_delivery']);
         Route::get('my-deliveries/successful', [Deliveries_View::class, 'successful_deliveries']);
         Route::get('my-deliveries/failed', [Deliveries_View::class, 'failed_deliveries']);
-    //! End Get Pending/Success User Delivery
+
+        Route::get('my-deliveries/on-deliveryman/{deliveryman_id}', [Deliveries_View::class, 'on_delivery_by_deliveryman_id']);
+        //! End Get Pending/Success User Delivery
 
     //! Start Admin Initiates - Admin Reviews
         Route::put('purchase-orders-admin-update/{id}', [PurchaseOrder_AdminConfirms::class, 'update_to_success']);
