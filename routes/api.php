@@ -11,8 +11,12 @@
     use App\Http\Controllers\API\Product\ProductController;
 
     use App\Http\Controllers\API\Deliveries\DeliveryController;
-    use App\Http\Controllers\API\Deliveries\Deliveries_View;
-    use App\Http\Controllers\API\Deliveries\Delivery_ViewDamages;
+    use App\Http\Controllers\API\Deliveries\Deliveries_View_OnDelivery;
+    use App\Http\Controllers\API\Deliveries\Deliveries_View_Pending;
+    use App\Http\Controllers\API\Deliveries\Deliveries_View_Failed;
+    use App\Http\Controllers\API\Deliveries\Deliveries_View_Success;
+    use App\Http\Controllers\API\Deliveries\Delivery_View_ProductDamages;
+    // use App\Http\Controllers\API\Deliveries\Delivery_ViewDamages;
 
     use App\Http\Controllers\API\PurchaseOrder\SaleTypeController;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrderController;
@@ -21,6 +25,7 @@
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_ViewWalkIns;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_WalkIn;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AdminConfirms;
+    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfProductToDeliver;
 
     use App\Http\Controllers\API\Test\UploadImage;
     use App\Models\Delivery;
@@ -47,7 +52,7 @@
 // Start User type
     Route::post('user-type', [UserTypeController::class, 'create']);
     Route::get('user-type', [UserTypeController::class, 'index']);
-    Route::delete('user-type/{id}', [UserTypeController::class, 'delete']);
+    // Route::delete('user-type/{id}', [UserTypeController::class, 'delete']);
 // End User type
 
 // Start User
@@ -64,7 +69,7 @@
     Route::get('categories', [CategoryController::class, 'index']);
     Route::get('categories/{id}', [CategoryController::class, 'show']);
     Route::put('categories/{id}', [CategoryController::class, 'update']);
-    Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
+    // Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
 // End Category
 
 // Start Sale Type -- apiResource uses all method in one call
@@ -79,7 +84,9 @@
         Route::get('purchase-orders-delivery', [PurchaseOrder_ViewDeliveries::class, 'index_purchase_order']);
         Route::get('purchase-orders-delivery-pending', [PurchaseOrder_ViewDeliveries::class, 'pending_purchase_order']);
         Route::get('purchase-orders-delivery/{id}', [PurchaseOrder_ViewDeliveries::class, 'show_purchase_order']);
-        Route::get('purchase-orders-delivery-product-left/{id}', [PurchaseOrder_ViewDeliveries::class, 'getRemainingToDeliver']);
+        Route::get('purchase-orders-delivery-quantity-left/{id}', [PurchaseOrder_ViewDeliveries::class, 'getRemainingToDeliver']);
+
+        Route::get('purchase-orders-get-remaining-balance/{purchaseOrderId}', [PurchaseOrder_GetRemainingBalanceOfProductToDeliver::class, 'getRemainingQuantities']);
 
         Route::get('purchase-orders-walk-in', [PurchaseOrder_ViewWalkIns::class, 'index_walk_in']);
         //! End View All Purchase Order
@@ -99,7 +106,7 @@
     //! End Assign Delivery
 
     //! Start Delivery Update - delivery man is assigned to its purchase-order, this route will be initiated by the delivery man depending on its "status"!!!
-        Route::post('/update-delivery/{id}', [DeliveryController::class, 'update_delivery']);
+        Route::post('/update-delivery/{delivery_id}', [DeliveryController::class, 'update_delivery']);
 
         //? Start - Samples - TEST AREA
             Route::post('upload-image', [DeliveryController::class, 'sample_upload'])->name('image.upload');
@@ -110,13 +117,17 @@
     //! End Delivery Update
 
     //! Start Get Pending/Success User Delivery
-        Route::get('my-deliveries/sample', [Deliveries_View::class, 'sample']);
-        Route::get('my-deliveries/pending', [Deliveries_View::class, 'pending_deliveries']);
-        Route::get('my-deliveries/on-delivery', [Deliveries_View::class, 'on_delivery']);
-        Route::get('my-deliveries/successful', [Deliveries_View::class, 'successful_deliveries']);
-        Route::get('my-deliveries/failed', [Deliveries_View::class, 'failed_deliveries']);
+        // Route::get('my-deliveries/sample', [Deliveries_View::class, 'sample']);
+        Route::get('my-deliveries/on-delivery', [Deliveries_View_OnDelivery::class, 'on_delivery']);
+        Route::get('my-deliveries/on-deliveryman/{deliveryman_id}', [Deliveries_View_OnDelivery::class, 'on_delivery_by_deliveryman_id']);
 
-        Route::get('my-deliveries/on-deliveryman/{deliveryman_id}', [Deliveries_View::class, 'on_delivery_by_deliveryman_id']);
+        Route::get('my-deliveries/pending', [Deliveries_View_Pending::class, 'pending_deliveries']);
+        Route::get('my-deliveries/pending/{deliveryman_id}', [Deliveries_View_Pending::class, 'pending_deliveries_by_id']);
+
+        Route::get('my-deliveries/successful', [Deliveries_View_Success::class, 'successful_deliveries']);
+        Route::get('my-deliveries/failed', [Deliveries_View_Failed::class, 'failed_deliveries']);
+
+
         //! End Get Pending/Success User Delivery
 
     //! Start Admin Initiates - Admin Reviews
@@ -143,8 +154,8 @@
 // End Product ReStocks
 
 // Start View Damages
-    Route::get('damages', [Delivery_ViewDamages::class, 'index']);
-    Route::get('damages/filter-by-delivery', [Delivery_ViewDamages::class, 'filterByDelivery']);
+    Route::get('damages', [Delivery_View_ProductDamages::class, 'index']);
+    Route::get('damages/filter-by-delivery', [Delivery_View_ProductDamages::class, 'filterByDelivery']);
 // End View Damages
 
 
