@@ -54,12 +54,38 @@ class PurchaseOrder_GetRemainingBalanceOfProductToDeliver
             ];
         })->values();
 
+        // Fetch total ordered quantities from product_details
+        $orderedQuantities = DB::table('product_details as pd')
+            ->join('products as p', 'pd.product_id', '=', 'p.id')
+            ->where('pd.purchase_order_id', $purchaseOrderId)
+            ->select(
+                'pd.product_id',
+                'p.product_name',
+                'pd.quantity as ordered_quantity',
+                'pd.price', // Use price from product_details if applicable
+                DB::raw('pd.quantity * pd.price as total_value') // Calculate total value using price from product_details
+            )
+            ->get();
+
+        // Combine the ordered and delivered data
+        $combinedQuantities = $orderedQuantities->map(function ($ordered) use ($totalDeliveredQuantities) {
+            $delivered = $totalDeliveredQuantities->firstWhere('product_id', $ordered->product_id);
+            return [
+                'product_id' => $ordered->product_id,
+                'product_name' => $ordered->product_name,
+                'ordered_quantity' => $ordered->ordered_quantity,
+                'total_value' => $ordered->total_value,
+                'total_delivered_quantity' => $delivered ? $delivered['total_delivered_quantity'] : 0,
+                'remaining_quantity' => $ordered->ordered_quantity - ($delivered ? $delivered['total_delivered_quantity'] : 0),
+            ];
+        });
+
         // Return the response in JSON format
         return response()->json([
             'purchase_order_id' => $purchaseOrderId,
             'deliveries' => $groupedDeliveries,
             'Remaining' => [
-                'products' => $totalDeliveredQuantities,
+                'products' => $combinedQuantities,
             ],
         ]);
     }

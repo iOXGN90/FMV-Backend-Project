@@ -24,12 +24,23 @@ class PurchaseOrder_AssignEmployeeController extends BaseController
             'user_id' => 'required|exists:users,id',
             'product_details' => 'required|array',
             'product_details.*.product_id' => 'required|exists:products,id',
-            'product_details.*.quantity' => 'required|integer|min:1',
+            'product_details.*.quantity' => 'integer|min:0', // Allow zero quantity
         ]);
+
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 400);
         }
+
+        $filteredProductDetails = array_filter($request->input('product_details'), function ($detail) {
+            return $detail['quantity'] > 0; // Only keep products with quantity > 0
+        });
+
+
+        if (empty($filteredProductDetails)) {
+            return response()->json(['error' => 'No valid product quantities provided'], 400);
+        }
+
 
         $purchaseOrder = PurchaseOrder::find($request->input('purchase_order_id'));
         $employee = User::find($request->input('user_id'));
