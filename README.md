@@ -1,3 +1,34 @@
+# FMV-Backend-Project This repository contains the backend for the FMV application built with Laravel. 
+
+## Getting Started Follow these instructions to get a copy of the project up and running on your local machine. 
+
+### Prerequisites Make sure you have the following software installed: 
+- PHP >= 7.4
+- Composer
+- Node.js & npm
+- MySQL
+- ### Installation
+    1. Clone the Repository: ```git clone <your-repo-url>```
+    2. Navigate to Project Directory: ```cd <your-project-directory>```
+    3. Install Dependencies: ```composer install```
+    4. Environment Configuration:
+       - ```cp .env.example .env```
+       - Update the .env file with your environment-specific settings.
+    6. Generate Application Key: ```php artisan key:generate```
+    7. Database Setup: Configure your database settings in the .env file: ```Run migrations: php artisan migrate```
+    8. Install Laravel Passport: If Passport isn't already installed, run: composer require laravel/passport php artisan passport:install
+    9. Install Node.js Dependencies (If applicable): ```npm install``` and then compile the assets: ```npm run dev```
+## Running the Application To start the local development server, 
+- run: ```php artisan serve```
+- Open your browser and navigate to ```http://localhost:8000```.
+## Contributing Feel free to fork this repository and submit pull requests. 
+
+All contributions are welcome! ## License This project is licensed under the MIT License - see the LICENSE file for details. 
+
+## Acknowledgments - Laravel framework: https://laravel.com - All contributors and community members.
+
+
+
 ## Setting up
 # Laravel 10 REST API with Passport Example
 
