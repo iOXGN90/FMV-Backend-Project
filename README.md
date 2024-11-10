@@ -22,6 +22,11 @@
 - run: ```php artisan serve```
 - run: ```php artisan serve --host=ipv4 --port=3000``` <-- "This is an alternative way".
 - Open your browser and navigate to ```http://localhost:8000```.
+- Open your browser in alternative ```http://ipv4:3000```.
+- if the error is something about `personal access client`, install this:
+- ```php artisan passport:client --personal```
+
+
 ## Contributing Feel free to fork this repository and submit pull requests. 
 
 All contributions are welcome! ## License This project is licensed under the MIT License - see the LICENSE file for details. 
@@ -52,7 +57,6 @@ This repository demonstrates how to set up a Laravel 10 REST API using Laravel P
 - IF{
     if the error is something about `personal access client`, install this:
     - ```php artisan passport:client --personal```
-
 }
 
 2. **Configure Authentication:**
