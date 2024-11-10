@@ -27,7 +27,7 @@ All contributions are welcome! ## License This project is licensed under the MIT
 
 ## Acknowledgments - Laravel framework: https://laravel.com - All contributors and community members.
 
-
+## THIS IS THE ALTERNATIVE IF IT DOESN'T WORK AT FIRST
 
 ## Setting up
 # Laravel 10 REST API with Passport Example
