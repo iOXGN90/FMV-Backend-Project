@@ -85,7 +85,7 @@
         Route::get('purchase-orders-delivery-pending', [PurchaseOrder_ViewDeliveries::class, 'pending_purchase_order']);
         Route::get('purchase-orders-delivery/{id}', [PurchaseOrder_ViewDeliveries::class, 'show_purchase_order']);
         Route::get('purchase-orders-delivery-record/{id}', [PurchaseOrder_ViewDeliveries::class, 'show_deliveries_by_purchase_order']);
-        Route::get('purchase-orders-delivery-quantity-left/{id}', [PurchaseOrder_ViewDeliveries::class, 'getRemainingToDeliver']);
+        Route::get('purchase-orders-delivery-latest', [PurchaseOrder_ViewDeliveries::class, 'latest_purchase_orders']);
 
         Route::get('purchase-orders-get-remaining-balance/{purchaseOrderId}', [PurchaseOrder_GetRemainingBalanceOfProductToDeliver::class, 'getRemainingQuantities']);
 

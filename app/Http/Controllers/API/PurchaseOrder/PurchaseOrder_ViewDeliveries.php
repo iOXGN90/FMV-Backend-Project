@@ -27,6 +27,8 @@ class PurchaseOrder_ViewDeliveries extends BaseController
         return response()->json($purchaseOrder);
     }
 
+
+
     public function show_deliveries_by_purchase_order($id)
     {
         $purchaseOrderData = DB::table('purchase_orders')
@@ -105,16 +107,18 @@ class PurchaseOrder_ViewDeliveries extends BaseController
     // Get all Purchase Orders
     public function index_purchase_order()
     {
-        $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])->where('sale_type_id', 1)->get();
+        $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])
+                                        ->where('sale_type_id', 1)
+                                        ->paginate(20);  // Paginate the orders
 
-        $formattedOrders = $purchaseOrders->map(function ($order) {
+        // Map over the Paginator's items
+        $formattedOrders = collect($purchaseOrders->items())->map(function ($order) {
             return [
                 'purchase_order_id' => $order->id,
-                // 'admin id' => $order->user_id,
                 'sale_type_name' => $order->saleType->sale_type_name,
                 'customer_name' => $order->customer_name,
                 'status' => $order->status,
-                'created_at' => Carbon::parse($order->created_at)->format('l, M d, Y'), // Readable date format
+                'created_at' => Carbon::parse($order->created_at)->format('l, M d, Y'),
                 'address' => [
                     'street' => $order->address->street,
                     'barangay' => $order->address->barangay,
@@ -122,11 +126,11 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                     'zip_code' => $order->address->zip_code,
                     'province' => $order->address->province,
                 ],
-                'product_details | Products to Deliver' => $order->productDetails->map(function ($detail) {
+                'product_details' => $order->productDetails->map(function ($detail) {
                     return [
                         'product_details_id' => $detail->id,
                         'product_id' => $detail->product_id,
-                        'product_name' => $detail->product->product_name ?? 'N/A', // Include product name
+                        'product_name' => $detail->product->product_name ?? 'N/A',
                         'price' => $detail->price,
                         'quantity' => $detail->quantity,
                     ];
@@ -134,8 +138,56 @@ class PurchaseOrder_ViewDeliveries extends BaseController
             ];
         });
 
-        return response()->json($formattedOrders);
+        return response()->json([
+            'orders' => $formattedOrders,
+            'pagination' => [
+                'total' => $purchaseOrders->total(),
+                'perPage' => $purchaseOrders->perPage(),
+                'currentPage' => $purchaseOrders->currentPage(),
+                'lastPage' => $purchaseOrders->lastPage(),
+            ]
+        ]);
     }
+
+    public function latest_purchase_orders()
+    {
+        $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])
+                        ->where('sale_type_id', 1)
+                        ->orderBy('created_at', 'desc') // Order by latest
+                        ->take(5) // Limit to 10 latest
+                        ->get();
+
+        $formattedOrders = $purchaseOrders->map(function ($order) {
+            return [
+                'purchase_order_id' => $order->id,
+                'sale_type_name' => $order->saleType->sale_type_name,
+                'customer_name' => $order->customer_name,
+                'status' => $order->status,
+                'created_at' => Carbon::parse($order->created_at)->format('l, M d, Y'),
+                'address' => [
+                    'street' => $order->address->street,
+                    'barangay' => $order->address->barangay,
+                    'city' => $order->address->city,
+                    'zip_code' => $order->address->zip_code,
+                    'province' => $order->address->province,
+                ],
+                'product_details' => $order->productDetails->map(function ($detail) {
+                    return [
+                        'product_details_id' => $detail->id,
+                        'product_id' => $detail->product_id,
+                        'product_name' => $detail->product->product_name ?? 'N/A',
+                        'price' => $detail->price,
+                        'quantity' => $detail->quantity,
+                    ];
+                }),
+            ];
+        });
+
+        return response()->json([
+            'orders' => $formattedOrders,
+        ]);
+    }
+
 
 
 
@@ -180,72 +232,4 @@ class PurchaseOrder_ViewDeliveries extends BaseController
         return response()->json($formattedOrders);
     }
 
-    //! VIEW THE REMAINING STOCKS TO DELIVER PER PURCHASE ORDER
-    public function getRemainingToDeliver($id)
-    {
-        $results = DB::table('delivery_details as a')
-            ->select(
-                'a.id as delivery_details_id',
-                'a.quantity'
-            )
-            // ->where('a.id', '=', $id)
-            // ->where('a.sale_type_id', '=', 1)
-            // ->distinct('c.id') //<--- is this a valid answer, GPT?
-            // ->groupBy('b.id', 'd.id', 'a.id', 'b.quantity', 'd.product_name')
-            // ->orderBy('a.id')
-            ->get();
-
-        // return response()->json($results->values());
-        // $data = DB::table('deliveries as a')
-        // ->join('users as b', 'b.id', '=', 'a.user_id')
-        // ->join('purchase_orders as c', 'c.id', '=', 'a.purchase_order_id')
-        // ->join('delivery_products as d', 'a.id', '=', 'd.delivery_id')
-        // ->join('product_details as e', 'c.id', '=', 'e.purchase_order_id')
-        // ->join('products as f', 'f.id', '=', 'e.product_id')
-        // ->select(
-        //     'a.id as delivery_id',
-        //     'a.status',
-        //     'b.id as deliveryman_id',
-        //     'b.name as deliveryman_name',
-        //     'c.id as purchase_order_id',
-        //     'c.customer_name',
-        //     'd.quantity',
-        //     'e.price',
-        //     'f.id as product_id',
-        //     'f.product_name'
-        // )
-        // // ->where('a.status', '=', 'OD')
-        // ->where('a.id', '=', 4)
-        // // ->distinct() //! <--- This will choose data that are unique; same data will be not shown
-        // ->orderBy('c.id')
-        // ->get();
-
-        // $groupedOrders = $data->groupBy('purchase_order_id');
-
-        // $properFormat = $groupedOrders->map(function($orderedGroup){
-        //     $firstOrder = $orderedGroup->first();
-        //     return [
-        //         'purchase_order_id' => $firstOrder->purchase_order_id,
-        //         'delivery_id' => $firstOrder->delivery_id,
-        //         'deliveryman_id' => $firstOrder->deliveryman_id,
-        //         'deliveryman_name' => $firstOrder->deliveryman_name,
-        //         'customer_name' => $firstOrder->customer_name,
-        //         'status' => $firstOrder->status,
-        //         'products' => $orderedGroup->map(function($item){
-        //             return[
-        //                 'product_id' => $item->product_id,
-        //                 'product_name' => $item->product_name,
-        //                 'quantity' => $item->quantity,
-        //                 'price' => $item->price
-        //             ];
-        //         })
-        //         ->unique('product_id') //! <---- This will choose unique data of product id; clone data will be disregard
-        //         ->values()
-        //         ->toArray(),
-        //     ];
-        // });
-
-        // return response()->json($properFormat->values());
-}
-    //! VIEW THE REMAINING STOCKS TO DELIVER PER PURCHASE ORDER
 }
