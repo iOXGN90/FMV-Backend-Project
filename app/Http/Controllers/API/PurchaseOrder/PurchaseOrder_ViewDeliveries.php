@@ -108,8 +108,8 @@ class PurchaseOrder_ViewDeliveries extends BaseController
     public function index_purchase_order()
     {
         $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])
-                                        ->where('sale_type_id', 1)
-                                        ->paginate(20);  // Paginate the orders
+                        ->where('sale_type_id', 1)
+                        ->paginate(20);  // Paginate the orders
 
         // Map over the Paginator's items
         $formattedOrders = collect($purchaseOrders->items())->map(function ($order) {

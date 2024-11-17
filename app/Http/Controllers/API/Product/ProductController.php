@@ -11,26 +11,6 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductController extends BaseController
 {
-    // Display a listing of the Product.
-    public function index()
-    {
-        // Eager load the category relationship to avoid N+1 query problem
-        $products = Product::with('category')->get();
-
-        // Create a custom response array
-        $response = $products->map(function($product) {
-            return [
-                'product_id' => $product->id,
-                'category_name' => $product->category->category_name,
-                'product_name' => $product->product_name,
-                'original_price' => $product->original_price,
-                'quantity' => $product->quantity,
-            ];
-        });
-
-        return response()->json($response);
-    }
-
 
     // create a newly Product in storage.
     public function create(Request $request)

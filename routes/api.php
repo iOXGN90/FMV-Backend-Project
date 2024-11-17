@@ -7,6 +7,7 @@
     use App\Http\Controllers\API\User\UserController;
 
     use App\Http\Controllers\API\Product\CategoryController;
+    use App\Http\Controllers\API\Product\Product_View;
     use App\Http\Controllers\API\Product\ProductRestockController;
     use App\Http\Controllers\API\Product\ProductController;
 
@@ -143,7 +144,8 @@
 
 // Start Product
     Route::post('products', [ProductController::class, 'create']);
-    Route::get('products', [ProductController::class, 'index']);
+    Route::get('products', [Product_View::class, 'index']);
+    Route::get('products-overview', [Product_View::class, 'index_overview']);
 // End Product
 
 // Start Product ReStocks
