@@ -23,7 +23,7 @@ class Product_View extends BaseController
                 'product_id' => $product->id,
                 'category_name' => $product->category->category_name,
                 'product_name' => $product->product_name,
-                'original_price' => $product->original_price,
+                'original_price' => number_format($product->original_price, 2, '.', ''),
                 'quantity' => $product->quantity,
             ];
         });
