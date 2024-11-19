@@ -17,7 +17,8 @@
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Failed;
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Success;
     use App\Http\Controllers\API\Deliveries\Delivery_View_ProductDamages;
-    // use App\Http\Controllers\API\Deliveries\Delivery_ViewDamages;
+    use App\Http\Controllers\API\Deliveries\Deliveries_View;
+// use App\Http\Controllers\API\Deliveries\Delivery_ViewDamages;
 
     use App\Http\Controllers\API\PurchaseOrder\SaleTypeController;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrderController;
@@ -128,6 +129,7 @@
 
         Route::get('my-deliveries/successful', [Deliveries_View_Success::class, 'successful_deliveries']);
         Route::get('my-deliveries/failed', [Deliveries_View_Failed::class, 'failed_deliveries']);
+        Route::get('deliveries/index', [Deliveries_View::class, 'index']);
 
 
         //! End Get Pending/Success User Delivery
