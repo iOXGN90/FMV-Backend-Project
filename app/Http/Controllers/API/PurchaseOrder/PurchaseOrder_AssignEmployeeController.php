@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\DeliveryProduct;
 use App\Http\Controllers\API\BaseController;
+use Carbon\Carbon;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -68,6 +69,7 @@ class PurchaseOrder_AssignEmployeeController extends BaseController
                 'user_id' => $employee->id,
                 'delivery_no' => $nextDeliveryNo,
                 'status' => 'OD',
+                'created_at' => Carbon::now('Asia/Manila'), // Explicitly set timezone
                 'notes' => $request->input('notes', '')
             ]);
 

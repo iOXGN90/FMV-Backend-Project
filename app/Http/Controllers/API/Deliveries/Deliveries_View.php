@@ -30,12 +30,16 @@ class Deliveries_View extends BaseController
                 'delivery_no' => $delivery->delivery_no,
                 'notes' => $delivery->notes,
                 'status' => $delivery->status,
-                'formatted_date' => Carbon::parse($delivery->created_at)->format('m/d/Y H:i'),
+                'formatted_date' => Carbon::parse($delivery->created_at)
+                    ->timezone(config('app.timezone')) // Apply the timezone from config
+                    ->format('m/d/Y H:i'),
                 'purchase_order' => $delivery->purchaseOrder ? [
                     'purchase_order_id' => $delivery->purchaseOrder->id,
                     'customer_name' => $delivery->purchaseOrder->customer_name,
                     'status' => $delivery->purchaseOrder->status,
-                    'date' => Carbon::parse($delivery->purchaseOrder->date)->format('m/d/Y H:i'),
+                    'date' => Carbon::parse($delivery->purchaseOrder->date)
+                        ->timezone(config('app.timezone')) // Apply the timezone from config
+                        ->format('m/d/Y H:i'),
                 ] : null,
                 'delivery_man' => $delivery->user ? [
                     'user_id' => $delivery->user->id,
@@ -45,7 +49,6 @@ class Deliveries_View extends BaseController
                 ] : null,
             ];
         });
-
 
         // Return the formatted data with pagination metadata
         return response()->json([
@@ -58,5 +61,6 @@ class Deliveries_View extends BaseController
             ],
         ]);
     }
+
 
 }

@@ -12,37 +12,50 @@ use Illuminate\Support\Facades\Validator;
 class Product_View extends BaseController
 {
 
-    public function index()
+    public function index(Request $request)
     {
-        // Eager load the category relationship to avoid N+1 query problem
-        $products = Product::with('category')->paginate(20);
+        $query = Product::with('category');
 
-        // Transform the paginated items to create a custom response array
-        $response = collect($products->items())->map(function($product) {
+        // Filter by multiple categories
+        if ($request->has('categories') && !empty($request->input('categories'))) {
+            $categories = $request->input('categories'); // Expect an array
+            $query->whereHas('category', function ($query) use ($categories) {
+                $query->whereIn('category_name', $categories);
+            });
+        }
+
+        // Add pagination
+        $products = $query->paginate(40);
+
+        // Format the response
+        $formattedProducts = collect($products->items())->map(function ($product) {
             return [
                 'product_id' => $product->id,
-                'category_name' => $product->category->category_name,
+                'category_name' => $product->category->category_name ?? 'Uncategorized', // Fallback for missing category
                 'product_name' => $product->product_name,
-                'original_price' => number_format($product->original_price, 2, '.', ''),
+                'original_price' => number_format($product->original_price, 2, '.', ''), // Ensure 2 decimal places
                 'quantity' => $product->quantity,
             ];
         });
 
         return response()->json([
-            'products' => $response,
+            'products' => $formattedProducts,
             'pagination' => [
                 'total' => $products->total(),
                 'perPage' => $products->perPage(),
                 'currentPage' => $products->currentPage(),
                 'lastPage' => $products->lastPage(),
-            ]
+            ],
         ]);
     }
+
+
+
 
     public function index_overview(Request $request)
     {
         // Validate or set default values
-        $maxQuantity = $request->input('maxQuantity', 450);  // Default to 100 if not specified
+        $maxQuantity = $request->input('maxQuantity', 250);  // Default to 100 if not specified
 
         // Fetch products where quantity is less than or equal to $maxQuantity
         $products = Product::where('quantity', '<=', $maxQuantity)
