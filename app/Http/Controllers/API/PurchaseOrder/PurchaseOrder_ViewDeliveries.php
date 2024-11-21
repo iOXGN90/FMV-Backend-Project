@@ -107,9 +107,20 @@ class PurchaseOrder_ViewDeliveries extends BaseController
     // Get all Purchase Orders
     public function index_purchase_order()
     {
+        // Get all purchase orders with related data
         $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])
-                        ->where('sale_type_id', 1)
-                        ->paginate(20);  // Paginate the orders
+                            ->where('sale_type_id', 1)
+                            ->paginate(20);  // Paginate the orders
+
+        // Get the total count of purchase orders
+        $totalPurchaseOrders = PurchaseOrder::where('sale_type_id', 1)->count();
+
+        // Calculate the total worth of all purchase orders
+        $totalWorth = DB::table('product_details')
+            ->join('purchase_orders', 'product_details.purchase_order_id', '=', 'purchase_orders.id')
+            ->where('purchase_orders.sale_type_id', 1)
+            ->select(DB::raw('SUM(product_details.quantity * product_details.price) as total_worth'))
+            ->value('total_worth');
 
         // Map over the Paginator's items
         $formattedOrders = collect($purchaseOrders->items())->map(function ($order) {
@@ -145,24 +156,50 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                 'perPage' => $purchaseOrders->perPage(),
                 'currentPage' => $purchaseOrders->currentPage(),
                 'lastPage' => $purchaseOrders->lastPage(),
-            ]
+            ],
+            'summary' => [
+                'totalPurchaseOrders' => $totalPurchaseOrders, // Total number of purchase orders
+                'totalWorth' => number_format($totalWorth, 2, '.', ''), // Total worth of all purchase orders
+            ],
         ]);
     }
 
     public function latest_purchase_orders()
     {
+        // Get the latest 5 purchase orders with related data
         $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])
-                        ->where('sale_type_id', 1)
-                        ->orderBy('created_at', 'desc') // Order by latest
-                        ->take(5) // Limit to 10 latest
-                        ->get();
+            ->where('sale_type_id', 1)
+            ->where('status', 'P')
+            ->orderBy('created_at', 'desc')
+            ->take(10)
+            ->get();
 
+        // Calculate total number of purchase orders
+        $totalPurchaseOrders = PurchaseOrder::where('sale_type_id', 1)->count();
+
+        // Calculate the total accumulated money from all purchase orders
+        $totalMoneyAccumulated = PurchaseOrder::with('productDetails')
+            // ->where('sale_type_id', 1)
+            ->get()
+            ->reduce(function ($carry, $order) {
+                return $carry + $order->productDetails->reduce(function ($carryDetails, $detail) {
+                    return $carryDetails + ($detail->quantity * $detail->price);
+                }, 0);
+            }, 0);
+
+        // Format and map the orders with total worth for each order
         $formattedOrders = $purchaseOrders->map(function ($order) {
+            // Calculate total worth for each order
+            $totalWorth = $order->productDetails->reduce(function ($carry, $detail) {
+                return $carry + ($detail->quantity * $detail->price);
+            }, 0);
+
             return [
                 'purchase_order_id' => $order->id,
                 'sale_type_name' => $order->saleType->sale_type_name,
                 'customer_name' => $order->customer_name,
                 'status' => $order->status,
+                'total_worth' => number_format($totalWorth, 2, '.', ''), // Total worth of this purchase order
                 'created_at' => Carbon::parse($order->created_at)->format('l, M d, Y'),
                 'address' => [
                     'street' => $order->address->street,
@@ -185,8 +222,14 @@ class PurchaseOrder_ViewDeliveries extends BaseController
 
         return response()->json([
             'orders' => $formattedOrders,
+            'summary' => [
+                'totalPurchaseOrders' => $totalPurchaseOrders, // Total number of purchase orders
+                'totalMoneyAccumulated' => number_format($totalMoneyAccumulated, 2, '.', ''), // Total money accumulated
+            ],
         ]);
     }
+
+
 
 
 

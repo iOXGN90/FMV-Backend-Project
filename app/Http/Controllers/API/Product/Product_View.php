@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class Product_View extends BaseController
 {
@@ -23,6 +24,9 @@ class Product_View extends BaseController
                 $query->whereIn('category_name', $categories);
             });
         }
+
+        // Calculate the total value of assets before applying pagination
+        $totalValue = $query->sum(DB::raw('original_price * quantity'));
 
         // Add pagination
         $products = $query->paginate(40);
@@ -46,8 +50,12 @@ class Product_View extends BaseController
                 'currentPage' => $products->currentPage(),
                 'lastPage' => $products->lastPage(),
             ],
+            'totalValue' => number_format($totalValue, 2, '.', ''), // Include total value for all products
         ]);
     }
+
+
+
 
 
 
