@@ -23,3 +23,4 @@ database/migrations/2024_09_29_101954_create_oauth_access_tokens_table.php
 database/migrations/2024_09_29_101955_create_oauth_refresh_tokens_table.php
 database/migrations/2024_09_29_101956_create_oauth_clients_table.php
 database/migrations/2024_09_29_101957_create_oauth_personal_access_clients_table.php
+/public/images

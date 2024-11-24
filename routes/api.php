@@ -113,7 +113,7 @@
 
         //? Start - Samples - TEST AREA
             Route::post('upload-image', [DeliveryController::class, 'sample_upload'])->name('image.upload');
-            Route::put('update-delivery-status-OD/{id}', [DeliveryController::class, 'update_delivery_status_OD']);
+            Route::post('update-delivery/{delivery_id}', [DeliveryController::class, 'update_delivery']);
             Route::put('update-delivery-status-P/{id}', [DeliveryController::class, 'update_delivery_status_P']);
         //? END
 

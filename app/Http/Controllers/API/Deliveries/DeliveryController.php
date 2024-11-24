@@ -45,62 +45,18 @@ class DeliveryController extends BaseController
     }
 
 
-
-    public function update_delivery_status_OD($id, $newStatus = 'OD')
-    {
-        // Perform a raw SQL update query
-        DB::update('UPDATE deliveries SET status = ? WHERE id = ?', [$newStatus, $id]);
-
-        return response()->json([
-            'message' => 'Delivery status updated successfully!',
-            'delivery_id' => $id,
-            'new_status' => $newStatus
-        ], 200);
-    }
-
-    public function update_delivery_status_P(Request $request, $id)
-    {
-        $validator = Validator::make($request->all(), [
-        'status' => 'required|in:P,F,S,OD', // Validating status input
-        'notes' => 'nullable|string',      // Allow notes to be null or string
-    ]);
-
-    if ($validator->fails()) {
-        return response()->json($validator->errors(), 400);
-    }
-
-    // Extract status and notes from the request
-    $newStatus = 'P';
-    $notes = $request->input('notes');
-
-    // Perform a raw SQL update query to update both status and notes
-    DB::update('UPDATE deliveries SET status = ?, notes = ? WHERE id = ?', [$newStatus, $notes, $id]);
-
-    return response()->json([
-        'message' => 'Delivery status and notes updated successfully!',
-        'delivery_id' => $id,
-        'new_status' => $newStatus,
-        'notes' => $notes
-    ], 200);
-    }
-
     //! This code will run once the delivery man sends the status of the delivery
     // Update a specific delivery by ID
     public function update_delivery(Request $request, $id)
     {
-        // DB::update('UPDATE deliveries SET notes = ? WHERE id = ?', [
-        //     $request->input('notes'), $id
-        // ]);
-
-        // return response()->json([
-        //     'message' => 'Delivery updated successfully!',
-        //     'inputted_notes' => $request->input('notes')  // Reflect the updated notes back in the response
-        // ]);
-
         // Validate the incoming request
         $validator = Validator::make($request->all(), [
             'notes' => 'required|string',
-            'url' => 'sometimes|file|mimes:jpeg,png,jpg,gif,svg|max:2048', // Single image validation
+            'images' => 'sometimes|array', // Update to handle multiple images
+            'images.*' => 'file|mimes:jpeg,png,jpg,gif,svg|max:2048', // Validate each image in the array
+            'damages' => 'sometimes|array',
+            'damages.*.delivery_products_id' => 'required_with:damages|exists:delivery_products,id',
+            'damages.*.no_of_damages' => 'integer|min:0', // No longer required to allow it to default to 0
         ]);
 
         if ($validator->fails()) {
@@ -118,19 +74,37 @@ class DeliveryController extends BaseController
 
             // Update notes
             $delivery->notes = $request->input('notes');
-            $delivery->status = 'P';
+            $delivery->status = 'P'; // Set the status to Pending
 
-            // Handle single image upload
-            if ($request->hasFile('url') && $id) {
-                $file = $request->file('url');
-                $imageName = time() . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path('images'), $imageName);
+            // Handle multiple image uploads
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $file) {
+                    $imageName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $file->move(public_path('images'), $imageName);
 
-                // Assuming Image model is correctly set up to handle delivery_id
-                $image = new Image();
-                $image->url = 'images/' . $imageName;
-                $image->delivery_id = $id;  // ensure this is not null
-                $image->save();
+                    // Create a new Image instance and save it
+                    $image = new Image();
+                    $image->url = 'images/' . $imageName;
+                    $image->delivery_id = $id; // Ensure this is not null
+                    $image->save();
+                }
+            }
+
+            // Handle damages
+            if ($request->has('damages')) {
+                foreach ($request->input('damages') as $damage) {
+                    Damage::updateOrCreate(
+                        [
+                            'delivery_products_id' => $damage['delivery_products_id']
+                        ],
+                        [
+                            'delivery_id' => $id, // Set the delivery ID here
+                            'no_of_damages' => $damage['no_of_damages'] ?? 0, // Use 0 if not provided
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]
+                    );
+                }
             }
 
             $delivery->save();
@@ -139,8 +113,8 @@ class DeliveryController extends BaseController
             return response()->json([
                 'message' => 'Delivery updated successfully!',
                 'delivery' => $delivery,
-                'changed_status' => 'P',
-                'image' => $image // Add the image response
+                'status' => 'P', // Reflect the updated status
+                'images' => Image::where('delivery_id', $id)->get(), // Return all images related to this delivery
             ], 200);
 
         } catch (\Exception $e) {
@@ -148,6 +122,10 @@ class DeliveryController extends BaseController
             return response()->json(['error' => 'Error occurred while updating the delivery: ' . $e->getMessage()], 500);
         }
     }
+
+
+
+
 
 
     private function uploadImage($file, $delivery)
@@ -180,17 +158,6 @@ class DeliveryController extends BaseController
 // }
 
 
-    // Get a specific delivery by ID
-    public function show($id)
-    {
-        $delivery = Delivery::with('purchaseOrder', 'user', 'deliveryProducts.productDetail.product', 'images')->find($id);
-
-        if (is_null($delivery)) {
-            return response()->json(['message' => 'Delivery not found'], 404);
-        }
-
-        return response()->json($delivery);
-    }
 
     // Delete a specific delivery by ID
     public function destroy($id)
