@@ -11,18 +11,22 @@ class ProductDetail extends Model
 
     protected $guarded = [];
 
-    // Start Foreign Key Connection
-        public function product(){
-            return $this->belongsTo(Product::class, 'product_id');
-        }
+    // Relationship with Product
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id');
+    }
 
-        public function purchaseOrder(){
-            return $this->belongsTo(PurchaseOrder::class);
-        }
+    // Relationship with PurchaseOrder
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
+    }
 
-        public function deliveryProduct(){
-            return $this->hasMany(DeliveryProduct::class);
-        }
-    // End Foreign Key Connection
-
+    // Relationship with DeliveryProduct
+    public function deliveryProducts()
+    {
+        return $this->hasMany(DeliveryProduct::class, 'product_details_id');
+    }
 }
+

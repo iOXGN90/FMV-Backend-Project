@@ -18,7 +18,7 @@
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Success;
     use App\Http\Controllers\API\Deliveries\Delivery_View_ProductDamages;
     use App\Http\Controllers\API\Deliveries\Deliveries_View;
-// use App\Http\Controllers\API\Deliveries\Delivery_ViewDamages;
+    use App\Http\Controllers\api\deliveries\Delivery_View_Report;
 
     use App\Http\Controllers\API\PurchaseOrder\SaleTypeController;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrderController;
@@ -131,6 +131,9 @@
         Route::get('my-deliveries/failed', [Deliveries_View_Failed::class, 'failed_deliveries']);
         Route::get('deliveries/index', [Deliveries_View::class, 'index']);
 
+        // Start View Report
+        Route::get('/deliveries/{delivery_id}/report', [Delivery_View_Report::class, 'ViewReport']);
+        // End View Damages
 
         //! End Get Pending/Success User Delivery
 
@@ -158,10 +161,6 @@
     Route::delete('products-restock', [ProductRestockController::class, 'destroy']);
 // End Product ReStocks
 
-// Start View Damages
-    Route::get('damages', [Delivery_View_ProductDamages::class, 'index']);
-    Route::get('damages/filter-by-delivery', [Delivery_View_ProductDamages::class, 'filterByDelivery']);
-// End View Damages
 
 
 Route::post('sample-image', [UploadImage::class, 'store']);

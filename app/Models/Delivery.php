@@ -29,7 +29,7 @@ class Delivery extends Model
 
     public function deliveryProducts()
     {
-        return $this->hasMany(DeliveryProduct::class);
+        return $this->hasMany(DeliveryProduct::class, 'delivery_id');
     }
 
     public function damages(){
