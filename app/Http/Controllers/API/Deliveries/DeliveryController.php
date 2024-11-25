@@ -46,62 +46,59 @@ class DeliveryController extends BaseController
 
 
     //! This code will run once the delivery man sends the status of the delivery
-    // Update a specific delivery by ID
     public function update_delivery(Request $request, $id)
     {
-        // Validate the incoming request
+
         $validator = Validator::make($request->all(), [
-            'notes' => 'required|string',
-            'images' => 'sometimes|array', // Update to handle multiple images
-            'images.*' => 'file|mimes:jpeg,png,jpg,gif,svg|max:2048', // Validate each image in the array
+            'notes' => 'null|string', // Change 'note' to 'notes'
+            'images' => 'sometimes|array',
+            'images.*' => 'file|mimes:jpeg,png,jpg,gif,svg',
             'damages' => 'sometimes|array',
-            'damages.*.delivery_products_id' => 'required_with:damages|exists:delivery_products,id',
-            'damages.*.no_of_damages' => 'integer|min:0', // No longer required to allow it to default to 0
+            'damages.*.product_id' => 'required_with:damages|exists:products,id',
+            'damages.*.no_of_damages' => 'integer|min:0',
         ]);
+
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 400);
         }
 
-        // Start a database transaction
+
         DB::beginTransaction();
         try {
-            // Check if the delivery exists
             $delivery = Delivery::find($id);
             if (!$delivery) {
                 return response()->json(['message' => 'Delivery not found'], 404);
             }
 
-            // Update notes
-            $delivery->notes = $request->input('notes');
-            $delivery->status = 'P'; // Set the status to Pending
+            // Update notes and status
+            $delivery->notes = $request->input('notes', 'no comment'); // Default value
+            $delivery->status = 'P';
 
-            // Handle multiple image uploads
+            // Handle images
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $file) {
                     $imageName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
                     $file->move(public_path('images'), $imageName);
 
-                    // Create a new Image instance and save it
-                    $image = new Image();
-                    $image->url = 'images/' . $imageName;
-                    $image->delivery_id = $id; // Ensure this is not null
-                    $image->save();
+                    Image::create([
+                        'delivery_id' => $id,
+                        'url' => 'images/' . $imageName,
+                    ]);
                 }
             }
 
             // Handle damages
+            $damages = [];
             if ($request->has('damages')) {
                 foreach ($request->input('damages') as $damage) {
-                    Damage::updateOrCreate(
+                    $damages[] = Damage::updateOrCreate(
                         [
-                            'delivery_products_id' => $damage['delivery_products_id']
+                            'delivery_id' => $id,
+                            'product_id' => $damage['product_id'],
                         ],
                         [
-                            'delivery_id' => $id, // Set the delivery ID here
-                            'no_of_damages' => $damage['no_of_damages'] ?? 0, // Use 0 if not provided
-                            'created_at' => now(),
-                            'updated_at' => now(),
+                            'no_of_damages' => $damage['no_of_damages'] ?? 0,
                         ]
                     );
                 }
@@ -110,18 +107,37 @@ class DeliveryController extends BaseController
             $delivery->save();
             DB::commit();
 
+            // Include all products in the response
+            $products = Product::whereHas('productDetails', function ($query) use ($delivery) {
+                $query->where('purchase_order_id', $delivery->purchase_order_id);
+            })->get()->map(function ($product) use ($damages) {
+                $damage = collect($damages)->firstWhere('product_id', $product->id);
+                return [
+                    'product_id' => $product->id,
+                    'no_of_damages' => $damage ? $damage->no_of_damages : 0,
+                ];
+            });
+
             return response()->json([
                 'message' => 'Delivery updated successfully!',
-                'delivery' => $delivery,
-                'status' => 'P', // Reflect the updated status
-                'images' => Image::where('delivery_id', $id)->get(), // Return all images related to this delivery
+                'delivery' => [
+                    'id' => $delivery->id,
+                    'purchase_order_id' => $delivery->purchase_order_id,
+                    'user_id' => $delivery->user_id,
+                    'delivery_no' => $delivery->delivery_no,
+                    'notes' => $delivery->notes,
+                    'status' => $delivery->status,
+                    'products' => $products,
+                ],
             ], 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Error occurred while updating the delivery: ' . $e->getMessage()], 500);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+
 
 
 

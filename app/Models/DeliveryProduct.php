@@ -17,17 +17,13 @@ class DeliveryProduct extends Model
         return $this->belongsTo(Delivery::class);
     }
 
-    // public function product(){
-    //     return $this->belongsTo(Product::class);
-    // }
+    public function product(){
+        return $this->belongsTo(Product::class);
+    }
 
     public function productDetail()
     {
         return $this->belongsTo(ProductDetail::class);
     }
 
-    public function damages()
-    {
-        return $this->hasMany(Damage::class);
-    }
 }

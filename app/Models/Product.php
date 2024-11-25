@@ -26,6 +26,10 @@ class Product extends Model
             return $this->hasMany(ProductRestockOrder::class);
         }
 
+        public function damage(){
+            return $this->hasMany(Damage::class);
+        }
+
     // End Foreign Key Connection
 
 
