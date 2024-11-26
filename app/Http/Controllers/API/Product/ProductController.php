@@ -39,7 +39,7 @@ class ProductController extends BaseController
             'quantity' => $product->quantity,
         ];
 
-        return response()->json($response, 201);
+        return response()->json($response, 200, [], JSON_UNESCAPED_SLASHES);
     }
 
 

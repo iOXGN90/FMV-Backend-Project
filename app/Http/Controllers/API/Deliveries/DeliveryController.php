@@ -8,6 +8,7 @@ use App\Models\Delivery;
 use App\Models\Image;
 use App\Models\User;
 use App\Models\DeliveryProduct;
+use App\Models\Product;
 use App\Models\Damage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -44,25 +45,21 @@ class DeliveryController extends BaseController
         return back()->with('error', 'No file was uploaded.');
     }
 
-
-    //! This code will run once the delivery man sends the status of the delivery
     public function update_delivery(Request $request, $id)
     {
-
+        // Validate request data
         $validator = Validator::make($request->all(), [
-            'notes' => 'null|string', // Change 'note' to 'notes'
+            'notes' => 'nullable|string',
             'images' => 'sometimes|array',
             'images.*' => 'file|mimes:jpeg,png,jpg,gif,svg',
             'damages' => 'sometimes|array',
-            'damages.*.product_id' => 'required_with:damages|exists:products,id',
-            'damages.*.no_of_damages' => 'integer|min:0',
+            'damages.*.product_id' => 'required_with:damages.*.no_of_damages|exists:products,id',
+            'damages.*.no_of_damages' => 'required_with:damages.*.product_id|integer|min:0',
         ]);
-
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 400);
         }
-
 
         DB::beginTransaction();
         try {
@@ -72,15 +69,14 @@ class DeliveryController extends BaseController
             }
 
             // Update notes and status
-            $delivery->notes = $request->input('notes', 'no comment'); // Default value
+            $delivery->notes = $request->input('notes', 'no comment');
             $delivery->status = 'P';
 
-            // Handle images
+            // Handle image uploads
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $file) {
                     $imageName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
                     $file->move(public_path('images'), $imageName);
-
                     Image::create([
                         'delivery_id' => $id,
                         'url' => 'images/' . $imageName,
@@ -89,32 +85,38 @@ class DeliveryController extends BaseController
             }
 
             // Handle damages
-            $damages = [];
             if ($request->has('damages')) {
                 foreach ($request->input('damages') as $damage) {
-                    $damages[] = Damage::updateOrCreate(
-                        [
-                            'delivery_id' => $id,
-                            'product_id' => $damage['product_id'],
-                        ],
-                        [
-                            'no_of_damages' => $damage['no_of_damages'] ?? 0,
-                        ]
-                    );
+                    if (isset($damage['product_id']) && isset($damage['no_of_damages'])) {
+                        // Update no_of_damages directly in delivery_products table
+                        DeliveryProduct::where('delivery_id', $delivery->id)
+                            ->where('product_id', $damage['product_id'])
+                            ->update(['no_of_damages' => $damage['no_of_damages']]);
+                    } else {
+                        \Log::error("Missing or incomplete damage data", $damage);
+                    }
                 }
             }
 
             $delivery->save();
             DB::commit();
 
-            // Include all products in the response
-            $products = Product::whereHas('productDetails', function ($query) use ($delivery) {
-                $query->where('purchase_order_id', $delivery->purchase_order_id);
-            })->get()->map(function ($product) use ($damages) {
-                $damage = collect($damages)->firstWhere('product_id', $product->id);
+            // Fetch related products with damages information
+            $products = $delivery->deliveryProducts()->with('product')->get()->map(function ($deliveryProduct) {
                 return [
-                    'product_id' => $product->id,
-                    'no_of_damages' => $damage ? $damage->no_of_damages : 0,
+                    'product_id' => $deliveryProduct->product_id,
+                    'quantity' => $deliveryProduct->quantity,
+                    'no_of_damages' => $deliveryProduct->no_of_damages,
+                ];
+            });
+
+            // Fetch images related to the delivery
+            $baseUrl = config('app.url');
+            $images = $delivery->images->map(function ($image) use ($baseUrl) {
+                return [
+                    'id' => $image->id,
+                    'url' => $baseUrl . '/' . $image->url,
+                    'created_at' => $image->created_at->format('m/d/Y H:i'),
                 ];
             });
 
@@ -128,6 +130,7 @@ class DeliveryController extends BaseController
                     'notes' => $delivery->notes,
                     'status' => $delivery->status,
                     'products' => $products,
+                    'images' => $images, // Include images in the response
                 ],
             ], 200);
 
@@ -136,8 +139,6 @@ class DeliveryController extends BaseController
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-
-
 
 
 

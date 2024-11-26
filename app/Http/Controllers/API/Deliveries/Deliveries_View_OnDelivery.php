@@ -88,15 +88,14 @@ class Deliveries_View_OnDelivery extends BaseController
         return response()->json($properFormat->values());
     }
 
-
     public function on_delivery_by_deliveryman_id($deliveryman_id)
     {
         $data = DB::table('deliveries as a')
             ->join('users as b', 'b.id', '=', 'a.user_id') // Join users (deliverymen)
             ->join('purchase_orders as c', 'c.id', '=', 'a.purchase_order_id') // Join purchase orders
             ->join('delivery_products as d', 'a.id', '=', 'd.delivery_id') // Join delivery products
-            ->join('product_details as e', 'c.id', '=', 'e.purchase_order_id') // Join product details
-            ->join('products as f', 'f.id', '=', 'e.product_id') // Join products
+            ->join('products as f', 'f.id', '=', 'd.product_id') // Join products directly with delivery_products
+            ->join('product_details as e', 'f.id', '=', 'e.product_id') // Join product details through products
             ->join('addresses as g', 'g.id', '=', 'c.address_id') // Join addresses
             ->select(
                 'a.id as delivery_id',
@@ -157,6 +156,7 @@ class Deliveries_View_OnDelivery extends BaseController
 
         return response()->json($formattedData->values());
     }
+
 
 
 }

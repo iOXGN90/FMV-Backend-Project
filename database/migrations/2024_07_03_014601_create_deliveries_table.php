@@ -22,7 +22,6 @@ return new class extends Migration
             $table->integer('delivery_no');
             $table->string('notes')->nullable();
             $table->enum('status', ['P', 'F', 'S', 'OD']);
-            $table->integer('no_of_damage')->default(0);
             $table->timestamps();
         });
     }

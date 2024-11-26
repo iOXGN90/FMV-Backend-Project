@@ -30,6 +30,10 @@ class Product extends Model
             return $this->hasMany(Damage::class);
         }
 
+        public function deliveryProduct(){
+            return $this->hasMany(DeliveryProduct::class);
+        }
+
     // End Foreign Key Connection
 
 

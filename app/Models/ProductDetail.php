@@ -23,10 +23,6 @@ class ProductDetail extends Model
         return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 
-    // Relationship with DeliveryProduct
-    public function deliveryProducts()
-    {
-        return $this->hasMany(DeliveryProduct::class, 'product_details_id');
-    }
+
 }
 
