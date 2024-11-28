@@ -2,6 +2,7 @@
 
 
 // Start Import
+
     use Illuminate\Support\Facades\Route;
     use App\Http\Controllers\API\User\UserTypeController;
     use App\Http\Controllers\API\User\UserController;
@@ -16,8 +17,9 @@
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Pending;
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Failed;
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Success;
-    use App\Http\Controllers\API\Deliveries\Delivery_View_ProductDamages;
     use App\Http\Controllers\API\Deliveries\Deliveries_View;
+
+    use App\Http\Controllers\API\Deliveries\Deliveries_Returns;
     use App\Http\Controllers\api\deliveries\Delivery_View_Report;
 
     use App\Http\Controllers\API\PurchaseOrder\SaleTypeController;
@@ -30,8 +32,7 @@
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfProductToDeliver;
 
     use App\Http\Controllers\API\Test\UploadImage;
-    use App\Models\Delivery;
-    use App\Models\PurchaseOrder;
+
 
 // End Import
 
@@ -131,8 +132,10 @@
         Route::get('my-deliveries/failed', [Deliveries_View_Failed::class, 'failed_deliveries']);
         Route::get('deliveries/index', [Deliveries_View::class, 'index']);
 
+
         // Start View Report
-        Route::get('/deliveries/{delivery_id}/report', [Delivery_View_Report::class, 'ViewReport']);
+            Route::post('/deliveries/return', [Deliveries_Returns::class, 'createReturns']);
+            Route::get('/deliveries/{delivery_id}/report', [Delivery_View_Report::class, 'ViewReport']);
         // End View Damages
 
         //! End Get Pending/Success User Delivery

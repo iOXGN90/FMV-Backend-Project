@@ -28,15 +28,14 @@ class PurchaseOrder_ViewDeliveries extends BaseController
     }
 
 
-
     public function show_deliveries_by_purchase_order($id)
     {
         $purchaseOrderData = DB::table('purchase_orders')
             ->leftJoin('addresses', 'purchase_orders.address_id', '=', 'addresses.id')
             ->leftJoin('deliveries', 'purchase_orders.id', '=', 'deliveries.purchase_order_id')
             ->leftJoin('delivery_products', 'deliveries.id', '=', 'delivery_products.delivery_id')
-            ->leftJoin('product_details', 'delivery_products.product_details_id', '=', 'product_details.id')
-            ->leftJoin('products', 'product_details.product_id', '=', 'products.id')
+            ->leftJoin('products', 'delivery_products.product_id', '=', 'products.id')
+            ->leftJoin('product_details', 'products.id', '=', 'product_details.product_id')
             ->leftJoin('users as delivery_user', 'deliveries.user_id', '=', 'delivery_user.id')
             ->leftJoin('users as admin_user', 'purchase_orders.user_id', '=', 'admin_user.id')
             ->where('purchase_orders.id', $id)
@@ -51,8 +50,12 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                 'deliveries.id as delivery_id',
                 'deliveries.delivery_no',
                 'deliveries.status as delivery_status',
+                'deliveries.created_at as delivery_date',
+                'deliveries.updated_at as updated_date',
                 'delivery_user.name as delivery_man_name',
+                'delivery_products.product_id',
                 'delivery_products.quantity as delivery_product_quantity',
+                'delivery_products.no_of_damages',
                 'product_details.price',
                 'products.product_name'
             )
@@ -62,19 +65,27 @@ class PurchaseOrder_ViewDeliveries extends BaseController
         $groupedData = $purchaseOrderData->groupBy('delivery_id')->map(function ($items, $deliveryId) {
             $firstItem = $items->first();
 
+            // Group products by product_id to ensure unique products within each delivery
+            $uniqueProducts = $items->groupBy('product_id')->map(function ($productItems) {
+                $firstProductItem = $productItems->first();
+
+                return [
+                    'product_name' => $firstProductItem->product_name,
+                    'quantity' => $firstProductItem->delivery_product_quantity,
+                    'price' => $firstProductItem->price,
+                    'no_of_damages' => $firstProductItem->no_of_damages,
+                ];
+            })->values();
+
             return [
                 'delivery_id' => $deliveryId ?: null,
                 'delivery_no' => $firstItem->delivery_no ?: null,
                 'delivery_status' => $firstItem->delivery_status ?: null,
                 'delivery_man_name' => $firstItem->delivery_man_name ?: null,
-                'products' => $items->map(function ($item) {
-                    // Only include products if product_name or quantity is available
-                    return array_filter([
-                        'product_name' => $item->product_name,
-                        'quantity' => $item->delivery_product_quantity,
-                        'price' => $item->price,
-                    ], fn($value) => !is_null($value) && $value !== '');
-                })->values(),
+                'delivery_created' => $firstItem->delivery_date,
+                'delivery_updated' => $firstItem->updated_date,
+                'products' => $uniqueProducts,
+
             ];
         })->filter(function ($delivery) {
             // Remove deliveries with all null fields (if there’s no delivery_id, delivery_no, etc.)
@@ -101,7 +112,6 @@ class PurchaseOrder_ViewDeliveries extends BaseController
 
         return response()->json($response);
     }
-
 
 
     // Get all Purchase Orders

@@ -35,6 +35,7 @@ class Delivery_View_Report extends BaseController
             $products = $delivery->deliveryProducts->map(function ($deliveryProduct) {
                 $productDetail = $deliveryProduct->product->productDetails->first(); // Assuming you want the first product detail
                 return [
+                    'delivery_product_id' => $deliveryProduct->id, // Adding delivery_product ID
                     'product_id' => $deliveryProduct->product_id,
                     'product_name' => $deliveryProduct->product->product_name,
                     'quantity_delivered' => $deliveryProduct->quantity,
