@@ -3,124 +3,157 @@
 namespace App\Http\Controllers\API\PurchaseOrder;
 
 use App\Models\DeliveryProduct;
-use Illuminate\Http\Request;
 use App\Models\PurchaseOrder;
-use Carbon\Carbon;
+
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
 use App\Http\Controllers\API\BaseController;
+
+use Carbon\Carbon;
 
 class PurchaseOrder_ViewDeliveries extends BaseController
 {
-    // Get Purchase Order Records
-
-    public function show_purchase_order($id)
-    {
-        $purchaseOrder = PurchaseOrder::with('address', 'productDetails.product')
-            ->where('sale_type_id', 1)  //? This condition for sale_type_id = 1
-            ->find($id);
-
-        if (is_null($purchaseOrder)) {
-            return response()->json([
-                'message' => 'Delivery [Purchase Order] is not found'], 404);
-        }
-
-        return response()->json($purchaseOrder);
-    }
-
-
     public function show_deliveries_by_purchase_order($id)
     {
-        $purchaseOrderData = DB::table('purchase_orders')
-            ->leftJoin('addresses', 'purchase_orders.address_id', '=', 'addresses.id')
-            ->leftJoin('deliveries', 'purchase_orders.id', '=', 'deliveries.purchase_order_id')
-            ->leftJoin('delivery_products', 'deliveries.id', '=', 'delivery_products.delivery_id')
-            ->leftJoin('products', 'delivery_products.product_id', '=', 'products.id')
-            ->leftJoin('product_details', 'products.id', '=', 'product_details.product_id')
-            ->leftJoin('users as delivery_user', 'deliveries.user_id', '=', 'delivery_user.id')
-            ->leftJoin('users as admin_user', 'purchase_orders.user_id', '=', 'admin_user.id')
-            ->where('purchase_orders.id', $id)
-            ->select(
-                'purchase_orders.*',
-                'admin_user.name as admin_name',
-                'addresses.street',
-                'addresses.barangay',
-                'addresses.city',
-                'addresses.province',
-                'addresses.zip_code',
-                'deliveries.id as delivery_id',
-                'deliveries.delivery_no',
-                'deliveries.status as delivery_status',
-                'deliveries.created_at as delivery_date',
-                'deliveries.updated_at as updated_date',
-                'delivery_user.name as delivery_man_name',
-                'delivery_products.product_id',
-                'delivery_products.quantity as delivery_product_quantity',
-                'delivery_products.no_of_damages',
-                'product_details.price',
-                'products.product_name'
-            )
-            ->get();
+        try {
+            // Enable query logging to debug any issues with the query
+            DB::enableQueryLog();
 
-        // Group data by delivery_id
-        $groupedData = $purchaseOrderData->groupBy('delivery_id')->map(function ($items, $deliveryId) {
-            $firstItem = $items->first();
+            // Fetch the purchase order with all related data
+            $purchaseOrderData = DB::table('purchase_orders')
+                ->leftJoin('addresses', 'purchase_orders.address_id', '=', 'addresses.id')
+                ->leftJoin('deliveries', 'purchase_orders.id', '=', 'deliveries.purchase_order_id')
+                ->leftJoin('delivery_products', 'deliveries.id', '=', 'delivery_products.delivery_id')
+                ->leftJoin('products', 'delivery_products.product_id', '=', 'products.id')
+                ->leftJoin('product_details', 'products.id', '=', 'product_details.product_id')
+                ->leftJoin('users as delivery_user', 'deliveries.user_id', '=', 'delivery_user.id')
+                ->leftJoin('users as admin_user', 'purchase_orders.user_id', '=', 'admin_user.id')
+                ->leftJoin('returns', 'delivery_products.id', '=', 'returns.delivery_products_id') // Include the returns table
+                ->where('purchase_orders.id', $id)
+                ->select(
+                    'purchase_orders.*',
+                    'admin_user.name as admin_name',
+                    'addresses.street',
+                    'addresses.barangay',
+                    'addresses.city',
+                    'addresses.province',
+                    'addresses.zip_code',
+                    'deliveries.id as delivery_id',
+                    'deliveries.delivery_no',
+                    'deliveries.status as delivery_status',
+                    'deliveries.created_at as delivery_date',
+                    'deliveries.updated_at as updated_date',
+                    'delivery_user.name as delivery_man_name',
+                    'delivery_products.id as delivery_product_id',  // Added delivery_product_id
+                    'delivery_products.product_id',
+                    'delivery_products.quantity as delivery_product_quantity',
+                    'delivery_products.no_of_damages',
+                    'product_details.price',
+                    'products.product_name',
+                    'returns.id as return_id',
+                    'returns.quantity as return_quantity',
+                    'returns.reason as return_reason',
+                    'returns.created_at as return_date' // Assuming the correct column name is `created_at`
+                )
+                ->get();
 
-            // Group products by product_id to ensure unique products within each delivery
-            $uniqueProducts = $items->groupBy('product_id')->map(function ($productItems) {
-                $firstProductItem = $productItems->first();
+            if ($purchaseOrderData->isEmpty()) {
+                return response()->json(['message' => 'No data found for this purchase order ID.'], 404);
+            }
+
+            // Group data by delivery_id
+            $groupedData = $purchaseOrderData->groupBy('delivery_id')->map(function ($items, $deliveryId) {
+                $firstItem = $items->first();
+
+                // Group products by product_id to ensure unique products within each delivery
+                $uniqueProducts = $items->groupBy('product_id')->map(function ($productItems) {
+                    $firstProductItem = $productItems->first();
+
+                    // Get returns data for each product
+                    $returns = $productItems->map(function ($item) {
+                        return [
+                            'return_id' => $item->return_id,
+                            'quantity' => $item->return_quantity,
+                            'reason' => $item->return_reason,
+                            'date' => $item->return_date,
+                        ];
+                    })->filter(function ($return) {
+                        // Filter out null returns
+                        return $return['return_id'] !== null;
+                    })->values();
+
+                    return [
+                        'delivery_product_id' => $firstProductItem->delivery_product_id, // Include delivery_product_id
+                        'product_name' => $firstProductItem->product_name,
+                        'quantity' => $firstProductItem->delivery_product_quantity,
+                        'price' => $firstProductItem->price,
+                        'no_of_damages' => $firstProductItem->no_of_damages,
+                        'returns' => $returns,
+                    ];
+                })->values();
 
                 return [
-                    'product_name' => $firstProductItem->product_name,
-                    'quantity' => $firstProductItem->delivery_product_quantity,
-                    'price' => $firstProductItem->price,
-                    'no_of_damages' => $firstProductItem->no_of_damages,
+                    'delivery_id' => $deliveryId ?: null,
+                    'delivery_no' => $firstItem->delivery_no ?: null,
+                    'delivery_status' => $firstItem->delivery_status ?: null,
+                    'delivery_man_name' => $firstItem->delivery_man_name ?: null,
+                    'delivery_created' => $firstItem->delivery_date,
+                    'delivery_updated' => $firstItem->updated_date,
+                    'products' => $uniqueProducts,
                 ];
+            })->filter(function ($delivery) {
+                // Remove deliveries with all null fields (if there’s no delivery_id, delivery_no, etc.)
+                return $delivery['delivery_id'] !== null || $delivery['delivery_no'] !== null;
             })->values();
 
-            return [
-                'delivery_id' => $deliveryId ?: null,
-                'delivery_no' => $firstItem->delivery_no ?: null,
-                'delivery_status' => $firstItem->delivery_status ?: null,
-                'delivery_man_name' => $firstItem->delivery_man_name ?: null,
-                'delivery_created' => $firstItem->delivery_date,
-                'delivery_updated' => $firstItem->updated_date,
-                'products' => $uniqueProducts,
+            // Structure the final response, filtering out null values in the address and main fields
+            $response = array_filter([
+                'purchase_order_id' => $purchaseOrderData->first()->id,
+                'admin_name' => $purchaseOrderData->first()->admin_name,
+                'customer_name' => $purchaseOrderData->first()->customer_name,
+                'status' => $purchaseOrderData->first()->status,
+                'created_at' => $purchaseOrderData->first()->created_at,
+                'updated_at' => $purchaseOrderData->first()->updated_at,
+                'address' => array_filter([
+                    'street' => $purchaseOrderData->first()->street,
+                    'barangay' => $purchaseOrderData->first()->barangay,
+                    'city' => $purchaseOrderData->first()->city,
+                    'province' => $purchaseOrderData->first()->province,
+                    'zip_code' => $purchaseOrderData->first()->zip_code,
+                ], fn($value) => !is_null($value) && $value !== ''),
+                'deliveries' => $groupedData,
+            ], fn($value) => !is_null($value) && $value !== '');
 
-            ];
-        })->filter(function ($delivery) {
-            // Remove deliveries with all null fields (if there’s no delivery_id, delivery_no, etc.)
-            return $delivery['delivery_id'] !== null || $delivery['delivery_no'] !== null;
-        })->values();
+            return response()->json($response);
 
-        // Structure the final response, filtering out null values in the address and main fields
-        $response = array_filter([
-            'purchase_order_id' => $purchaseOrderData->first()->id,
-            'admin_name' => $purchaseOrderData->first()->admin_name,
-            'customer_name' => $purchaseOrderData->first()->customer_name,
-            'status' => $purchaseOrderData->first()->status,
-            'created_at' => $purchaseOrderData->first()->created_at,
-            'updated_at' => $purchaseOrderData->first()->updated_at,
-            'address' => array_filter([
-                'street' => $purchaseOrderData->first()->street,
-                'barangay' => $purchaseOrderData->first()->barangay,
-                'city' => $purchaseOrderData->first()->city,
-                'province' => $purchaseOrderData->first()->province,
-                'zip_code' => $purchaseOrderData->first()->zip_code,
-            ], fn($value) => !is_null($value) && $value !== ''),
-            'deliveries' => $groupedData,
-        ], fn($value) => !is_null($value) && $value !== '');
-
-        return response()->json($response);
+        } catch (\Exception $e) {
+            Log::error('Error in show_deliveries_by_purchase_order:', [
+                'error' => $e->getMessage(),
+                'query' => DB::getQueryLog()
+            ]);
+            return response()->json(['error' => 'Something went wrong while retrieving the data.'], 500);
+        }
     }
 
 
-    // Get all Purchase Orders
-    public function index_purchase_order()
+
+
+
+
+    // Get all Purchase Orders based on filter
+    public function index_purchase_order(Request $request)
     {
+        $statusFilter = $request->query('status', null); // Get the status query parameter if available
+
         // Get all purchase orders with related data
         $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])
                             ->where('sale_type_id', 1)
-                            ->paginate(20);  // Paginate the orders
+                            ->when($statusFilter && $statusFilter !== 'All', function ($query) use ($statusFilter) {
+                                return $query->where('status', $statusFilter);
+                            })
+                            ->paginate(20); // Paginate the orders
 
         // Get the total count of purchase orders
         $totalPurchaseOrders = PurchaseOrder::where('sale_type_id', 1)->count();
@@ -174,10 +207,11 @@ class PurchaseOrder_ViewDeliveries extends BaseController
         ]);
     }
 
+    // This PO Function here is to Fetch For OVERVIEW Page
     public function latest_purchase_orders()
     {
         // Get the latest 5 purchase orders with related data
-        $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])
+        $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product', 'saleType'])
             ->where('sale_type_id', 1)
             ->where('status', 'P')
             ->orderBy('created_at', 'desc')
@@ -189,13 +223,22 @@ class PurchaseOrder_ViewDeliveries extends BaseController
 
         // Calculate the total accumulated money from all purchase orders
         $totalMoneyAccumulated = PurchaseOrder::with('productDetails')
-            // ->where('sale_type_id', 1)
             ->get()
             ->reduce(function ($carry, $order) {
                 return $carry + $order->productDetails->reduce(function ($carryDetails, $detail) {
                     return $carryDetails + ($detail->quantity * $detail->price);
                 }, 0);
             }, 0);
+
+        // Calculate the count of purchase orders based on status
+        $purchaseOrderStatusCounts = PurchaseOrder::where('sale_type_id', 1)
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $pendingCount = $purchaseOrderStatusCounts['P'] ?? 0;
+        $failedCount = $purchaseOrderStatusCounts['F'] ?? 0;
+        $successCount = $purchaseOrderStatusCounts['S'] ?? 0;
 
         // Format and map the orders with total worth for each order
         $formattedOrders = $purchaseOrders->map(function ($order) {
@@ -235,6 +278,9 @@ class PurchaseOrder_ViewDeliveries extends BaseController
             'summary' => [
                 'totalPurchaseOrders' => $totalPurchaseOrders, // Total number of purchase orders
                 'totalMoneyAccumulated' => number_format($totalMoneyAccumulated, 2, '.', ''), // Total money accumulated
+                'pendingCount' => $pendingCount, // Number of purchase orders with status 'P' (Pending)
+                'failedCount' => $failedCount, // Number of purchase orders with status 'F' (Failed)
+                'successCount' => $successCount, // Number of purchase orders with status 'S' (Success)
             ],
         ]);
     }

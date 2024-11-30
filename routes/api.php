@@ -13,7 +13,7 @@
     use App\Http\Controllers\API\Product\ProductController;
 
     use App\Http\Controllers\API\Deliveries\DeliveryController;
-    use App\Http\Controllers\API\Deliveries\Deliveries_View_OnDelivery;
+    use App\Http\Controllers\API\Deliveries\Deliveries_View_OnDelivery_EmployeeID;
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Pending;
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Failed;
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Success;
@@ -83,12 +83,13 @@
 //* Start Purchase Order | Delivery and Walk-in -- The Walk-in still uses the table of purchase-order table
 
     //! Start View All Purchase Order
-        Route::get('purchase-orders',[PurchaseOrder_ViewDeliveries::class, 'index']); //No filter
         Route::get('purchase-orders-delivery', [PurchaseOrder_ViewDeliveries::class, 'index_purchase_order']);
-        Route::get('purchase-orders-delivery-pending', [PurchaseOrder_ViewDeliveries::class, 'pending_purchase_order']);
+        Route::get('purchase-orders-delivery/pending', [PurchaseOrder_ViewDeliveries::class, 'pending_purchase_order']);
         Route::get('purchase-orders-delivery/{id}', [PurchaseOrder_ViewDeliveries::class, 'show_purchase_order']);
         Route::get('purchase-orders-delivery-record/{id}', [PurchaseOrder_ViewDeliveries::class, 'show_deliveries_by_purchase_order']);
         Route::get('purchase-orders-delivery-latest', [PurchaseOrder_ViewDeliveries::class, 'latest_purchase_orders']);
+
+        Route::post('/purchase-orders/{purchaseOrderId}/cancel', [PurchaseOrderController::class, 'cancelPurchaseOrder']);
 
         Route::get('purchase-orders-get-remaining-balance/{purchaseOrderId}', [PurchaseOrder_GetRemainingBalanceOfProductToDeliver::class, 'getRemainingQuantities']);
 
@@ -110,30 +111,25 @@
     //! End Assign Delivery
 
     //! Start Delivery Update - delivery man is assigned to its purchase-order, this route will be initiated by the delivery man depending on its "status"!!!
-        Route::post('/update-delivery/{delivery_id}', [DeliveryController::class, 'update_delivery']);
 
-        //? Start - Samples - TEST AREA
-            Route::post('upload-image', [DeliveryController::class, 'sample_upload'])->name('image.upload');
             Route::post('update-delivery/{delivery_id}', [DeliveryController::class, 'update_delivery']);
-            Route::put('update-delivery-status-P/{id}', [DeliveryController::class, 'update_delivery_status_P']);
-        //? END
+            Route::post('update-delivery/{delivery_id}/final', [DeliveryController::class, 'final_update']);
 
     //! End Delivery Update
 
     //! Start Get Pending/Success User Delivery
         // Route::get('my-deliveries/sample', [Deliveries_View::class, 'sample']);
-        Route::get('my-deliveries/on-delivery', [Deliveries_View_OnDelivery::class, 'on_delivery']);
-        Route::get('my-deliveries/on-deliveryman/{deliveryman_id}', [Deliveries_View_OnDelivery::class, 'on_delivery_by_deliveryman_id']);
+        Route::get('deliveries/index', [Deliveries_View::class, 'index']);
 
         Route::get('my-deliveries/pending', [Deliveries_View_Pending::class, 'pending_deliveries']);
         Route::get('my-deliveries/pending/{deliveryman_id}', [Deliveries_View_Pending::class, 'pending_deliveries_by_id']);
 
         Route::get('my-deliveries/successful', [Deliveries_View_Success::class, 'successful_deliveries']);
         Route::get('my-deliveries/failed', [Deliveries_View_Failed::class, 'failed_deliveries']);
-        Route::get('deliveries/index', [Deliveries_View::class, 'index']);
 
 
         // Start View Report
+            Route::get('my-deliveries/on-deliveryman/{deliveryman_id}', [Deliveries_View_OnDelivery_EmployeeID::class, 'on_delivery_by_deliveryman_id']);
             Route::post('/deliveries/return', [Deliveries_Returns::class, 'createReturns']);
             Route::get('/deliveries/{delivery_id}/report', [Delivery_View_Report::class, 'ViewReport']);
         // End View Damages
@@ -141,7 +137,7 @@
         //! End Get Pending/Success User Delivery
 
     //! Start Admin Initiates - Admin Reviews
-        Route::put('purchase-orders-admin-update/{id}', [PurchaseOrder_AdminConfirms::class, 'update_to_success']);
+        Route::post('purchase-orders-/{delivery_id}/final-update-delivery', [PurchaseOrder_AdminConfirms::class, 'update_to_success']);
     //! End Admin Initiates - Admin Reviews
 
     //! View remaining quantity to deliver

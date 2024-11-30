@@ -14,6 +14,7 @@ use App\Models\Delivery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 
 class PurchaseOrderController extends BaseController
@@ -114,6 +115,64 @@ class PurchaseOrderController extends BaseController
             return response()->json(['error' => 'Error occurred while creating the purchase order: ' . $e->getMessage()], 500);
         }
     }
+
+
+
+    public function cancelPurchaseOrder($purchaseOrderId)
+    {
+        try {
+            // Log start of cancellation process
+            Log::info('Attempting to cancel purchase order.', ['purchaseOrderId' => $purchaseOrderId]);
+
+            // Find the purchase order
+            $purchaseOrder = PurchaseOrder::with('delivery.deliveryProducts')->find($purchaseOrderId);
+
+            if (!$purchaseOrder) {
+                Log::error('Purchase Order not found.', ['purchaseOrderId' => $purchaseOrderId]);
+                return response()->json(['message' => 'Purchase Order not found'], 404);
+            }
+
+            // Ensure the purchase order is not completed successfully yet
+            if ($purchaseOrder->status === 'S') {
+                Log::error('Cannot cancel successfully completed purchase order.', ['purchaseOrderId' => $purchaseOrderId]);
+                return response()->json(['message' => 'Cannot cancel a successfully completed purchase order'], 400);
+            }
+
+            // Iterate through each delivery associated with the purchase order
+            foreach ($purchaseOrder->delivery as $delivery) {
+                Log::info('Processing delivery.', ['deliveryId' => $delivery->id]);
+
+                foreach ($delivery->deliveryProducts as $deliveryProduct) {
+                    Log::info('Processing delivery product.', ['deliveryProductId' => $deliveryProduct->id]);
+
+                    // Calculate the intact quantity to be returned to the product's stock
+                    $intactQuantity = $deliveryProduct->quantity - $deliveryProduct->no_of_damages;
+
+                    // Update the product's quantity
+                    $product = Product::find($deliveryProduct->product_id);
+                    if ($product) {
+                        $product->quantity += $intactQuantity;
+                        $product->save();
+                        Log::info('Updating product quantity.', ['productId' => $product->id, 'quantity' => $product->quantity]);
+                    }
+                }
+            }
+
+            // Update the purchase order status to "Failed" or "Cancelled"
+            $purchaseOrder->status = 'F'; // Assuming 'F' represents "Failed" or "Cancelled"
+            $purchaseOrder->save();
+
+            return response()->json(['message' => 'Purchase order canceled successfully. Products restocked.'], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error in cancelPurchaseOrder:', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Something went wrong while canceling the purchase order.'], 500);
+        }
+    }
+
+
+
+
 
     // Update a specific purchase order with address and product details
     public function update(Request $request, $id)

@@ -9,7 +9,7 @@ use App\Models\Image;
 use App\Models\User;
 use App\Models\DeliveryProduct;
 use App\Models\Product;
-use App\Models\Damage;
+use App\Models\Returns;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -19,31 +19,7 @@ use Psy\Readline\Hoa\Console;
 
 class DeliveryController extends BaseController
 {
-    public function sample_upload(Request $request)
-    {
-        // Validate the file input and delivery_id
-        $request->validate([
-            'image' => 'required|mimes:jpg,jpeg,png|max:2048', // Limit file types and size
-            'delivery_id' => 'required|integer', // Ensure delivery_id is provided
-        ]);
 
-        // Handle the file upload
-        if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('images', $filename, 'public'); // Save to 'storage/app/public/images'
-
-            // Insert into the database using raw SQL
-            DB::insert('INSERT INTO images (delivery_id, image_url, date) VALUES (?, ?, NOW())', [
-                $request->input('delivery_id'), // Foreign key to the delivery table
-                $path, // Path where the image is stored
-            ]);
-
-            return back()->with('success', 'Image uploaded successfully!');
-        }
-
-        return back()->with('error', 'No file was uploaded.');
-    }
 
     public function update_delivery(Request $request, $id)
     {
@@ -53,7 +29,7 @@ class DeliveryController extends BaseController
             'images' => 'sometimes|array',
             'images.*' => 'file|mimes:jpeg,png,jpg,gif,svg',
             'damages' => 'sometimes|array',
-            'damages.*.product_id' => 'required_with:damages.*.no_of_damages|exists:products,id',
+            'damages.*.product_id' => 'required_with:damages.*.no_of_damages|exists:delivery_products,product_id',
             'damages.*.no_of_damages' => 'required_with:damages.*.product_id|integer|min:0',
         ]);
 
@@ -68,9 +44,9 @@ class DeliveryController extends BaseController
                 return response()->json(['message' => 'Delivery not found'], 404);
             }
 
-            // Update notes and status
+            // Update notes
             $delivery->notes = $request->input('notes', 'no comment');
-            $delivery->status = 'P';
+            $delivery->status = 'OD'; // Set status to On Delivery by default
 
             // Handle image uploads
             if ($request->hasFile('images')) {
@@ -84,18 +60,66 @@ class DeliveryController extends BaseController
                 }
             }
 
-            // Handle damages
+            // Handle damages and returns status update
+            $damagesExist = false; // To track if there are any damages
+
             if ($request->has('damages')) {
                 foreach ($request->input('damages') as $damage) {
                     if (isset($damage['product_id']) && isset($damage['no_of_damages'])) {
-                        // Update no_of_damages directly in delivery_products table
-                        DeliveryProduct::where('delivery_id', $delivery->id)
+                        // Get the DeliveryProduct record
+                        $deliveryProduct = DeliveryProduct::where('delivery_id', $delivery->id)
                             ->where('product_id', $damage['product_id'])
-                            ->update(['no_of_damages' => $damage['no_of_damages']]);
+                            ->first();
+
+                        if ($deliveryProduct) {
+                            // Update no_of_damages directly in delivery_products table
+                            $deliveryProduct->update(['no_of_damages' => $damage['no_of_damages']]);
+
+                            // Update or create a return record
+                            $return = Returns::firstOrCreate(
+                                ['delivery_product_id' => $deliveryProduct->id], // Corrected to use deliveryProduct ID
+                                ['reason' => $request->input('reason', 'Damage reported')]
+                            );
+
+                            // Update status based on damage count
+                            if ($damage['no_of_damages'] > 0) {
+                                $return->status = 'P'; // Set status to Pending
+                                $damagesExist = true; // Mark that we have at least one damaged product
+                            } else {
+                                $return->status = 'NR'; // No Return if no damages
+                            }
+                            $return->save();
+                        } else {
+                            Log::error("No matching delivery product found for delivery ID {$delivery->id} and product ID {$damage['product_id']}");
+                        }
                     } else {
-                        \Log::error("Missing or incomplete damage data", $damage);
+                        Log::error("Missing or incomplete damage data", $damage);
                     }
                 }
+            }
+
+            // Set the delivery status and return status based on the damages
+            if ($damagesExist) {
+                $delivery->status = 'OD'; // On Delivery since there are damages
+            } else {
+                $delivery->status = 'P'; // Set delivery status to Pending
+                Returns::whereHas('deliveryProduct', function ($query) use ($delivery) {
+                    $query->where('delivery_id', $delivery->id);
+                })->update(['status' => 'NR']);
+            }
+
+            // Check if all returns are completed (in case they were previously set to Pending)
+            $allReturnsCompleted = Returns::whereHas('deliveryProduct', function ($query) use ($delivery) {
+                $query->where('delivery_id', $delivery->id);
+            })
+                ->where('status', '!=', 'S')
+                ->doesntExist();
+
+            if ($allReturnsCompleted) {
+                $delivery->status = 'P'; // Set status to Pending if all returns are complete
+                Returns::whereHas('deliveryProduct', function ($query) use ($delivery) {
+                    $query->where('delivery_id', $delivery->id);
+                })->update(['status' => 'S']); // Set all returns to Success
             }
 
             $delivery->save();
@@ -133,8 +157,39 @@ class DeliveryController extends BaseController
                     'images' => $images, // Include images in the response
                 ],
             ], 200);
-
         } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+
+    public function final_update($delivery_id)
+    {
+        // Start a database transaction to ensure all queries succeed or fail together
+        DB::beginTransaction();
+        try {
+            // Find the delivery by ID
+            $delivery = Delivery::find($delivery_id);
+            if (!$delivery) {
+                return response()->json(['message' => 'Delivery not found'], 404);
+            }
+
+            // Update delivery status to 'P' (Pending)
+            $delivery->status = 'P';
+            $delivery->save();
+
+            // Update all related returns to 'S' (Success) where the delivery ID matches
+            Returns::whereHas('deliveryProduct', function ($query) use ($delivery) {
+                $query->where('delivery_id', $delivery->id);
+            })->update(['status' => 'S']);
+
+            // Commit the transaction
+            DB::commit();
+
+            return response()->json(['message' => 'Delivery and returns updated successfully!'], 200);
+        } catch (\Exception $e) {
+            // Rollback transaction if something went wrong
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
         }
@@ -143,36 +198,6 @@ class DeliveryController extends BaseController
 
 
 
-
-
-    private function uploadImage($file, $delivery)
-    {
-        try {
-            $imageName = time() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('images'), $imageName);
-            $delivery->image_url = 'images/' . $imageName; // Ensure 'image_url' is your database column
-            return ['success' => true];
-        } catch (\Exception $e) {
-            return ['success' => false, 'message' => $e->getMessage()];
-        }
-    }
-
-
-
-//     public function uploadImage($file, $delivery_id) {
-//         $imageName = time() . '.' . $file->getClientOriginalExtension();
-//         $file->move(public_path('images'), $imageName); // Moves file to public/images
-
-//         $delivery = Delivery::find($delivery_id);
-//         if ($delivery) {
-//             $delivery->image_url = 'images/' . $imageName;
-//             $delivery->save();
-//         }
-//         return [
-//             'success' => true,
-//             'image_url' => asset('images/' . $imageName),
-//         ];
-// }
 
 
 

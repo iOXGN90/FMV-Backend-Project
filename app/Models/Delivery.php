@@ -9,7 +9,7 @@ class Delivery extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = ['purchase_order_id', 'user_id', 'delivery_no', 'notes', 'status', 'created_at', 'updated_at'];
 
     // Foreign Key Connections
     public function purchaseOrder()

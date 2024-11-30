@@ -20,16 +20,31 @@ class Deliveries_View extends BaseController
             $query->where('status', $request->input('status'));
         }
 
-        // Eager load purchase order details
-        $deliveries = $query->with('purchaseOrder')->paginate(20);
+        // Eager load purchase order details, delivery products, and returns
+        $deliveries = $query->with(['purchaseOrder', 'deliveryProducts.returns'])->paginate(20);
 
         // Format the deliveries using collect and map
         $formattedDeliveries = collect($deliveries->items())->map(function ($delivery) {
+            // Get the statuses of returns from all delivery products if available
+            $returnStatuses = $delivery->deliveryProducts->flatMap(function ($deliveryProduct) {
+                return $deliveryProduct->returns->pluck('status');
+            });
+
+            // Determine the overall return status based on the priority of statuses
+            if ($returnStatuses->contains('P')) {
+                $returnStatus = 'P'; // If at least one Pending
+            } elseif ($returnStatuses->contains('S') && $returnStatuses->every(fn($status) => $status === 'S')) {
+                $returnStatus = 'S'; // If all are Success
+            } else {
+                $returnStatus = 'NR'; // Default to No Return
+            }
+
             return [
                 'delivery_id' => $delivery->id,
                 'delivery_no' => $delivery->delivery_no,
                 'notes' => $delivery->notes,
                 'status' => $delivery->status,
+                'return_status' => $returnStatus,
                 'formatted_date' => Carbon::parse($delivery->created_at)
                     ->timezone(config('app.timezone')) // Apply the timezone from config
                     ->format('m/d/Y H:i'),
@@ -50,6 +65,7 @@ class Deliveries_View extends BaseController
             ];
         });
 
+
         // Return the formatted data with pagination metadata
         return response()->json([
             'deliveries' => $formattedDeliveries,
@@ -61,6 +77,8 @@ class Deliveries_View extends BaseController
             ],
         ]);
     }
+
+
 
 
 }

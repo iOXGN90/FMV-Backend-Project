@@ -13,80 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Unique;
 use Illuminate\Http\Request;
 
-class Deliveries_View_OnDelivery extends BaseController
+class Deliveries_View_OnDelivery_EmployeeID extends BaseController
 {
-
-    public function on_delivery()
-    {
-        $data = DB::table('deliveries as a')
-            ->join('users as b', 'b.id', '=', 'a.user_id')
-            ->join('purchase_orders as c', 'c.id', '=', 'a.purchase_order_id')
-            ->join('delivery_products as d', 'a.id', '=', 'd.delivery_id')
-            ->join('product_details as e', function($join) {
-                $join->on('c.id', '=', 'e.purchase_order_id')
-                     ->on('e.product_id', '=', 'd.product_details_id'); // Ensure product matching
-            })
-            ->join('products as f', 'f.id', '=', 'e.product_id')
-            ->join('addresses as g', 'c.address_id', '=', 'g.id')
-            ->select(
-                'a.id as delivery_id',
-                'a.delivery_no',
-                'a.status',
-                DB::raw("DATE_FORMAT(a.created_at, '%m/%d/%Y') as date"),
-                'b.id as deliveryman_id',
-                'b.name as deliveryman_name',
-                'c.id as purchase_order_id',
-                'c.customer_name',
-                'd.quantity',
-                'e.price',
-                'f.id as product_id',
-                'f.product_name',
-                'g.street',
-                'g.barangay',
-                'g.zip_code',
-                'g.province',
-                'g.city'
-            )
-            ->where('a.status', '=', 'OD')
-            ->orderBy('a.id', 'desc') // Order by delivery ID to show the latest first
-            ->get();
-
-        $groupedOrders = $data->groupBy('purchase_order_id');
-
-        $properFormat = $groupedOrders->map(function($orderedGroup) {
-            $firstOrder = $orderedGroup->first();
-            return [
-                'purchase_order_id' => $firstOrder->purchase_order_id,
-                'delivery_id' => $firstOrder->delivery_id,
-                'delivery_no' => $firstOrder->delivery_no,
-                'deliveryman_id' => $firstOrder->deliveryman_id,
-                'deliveryman_name' => $firstOrder->deliveryman_name,
-                'customer_name' => $firstOrder->customer_name,
-                'status' => $firstOrder->status,
-                'date' => $firstOrder->date,
-                'address' => [
-                    'street' => $firstOrder->street,
-                    'barangay' => $firstOrder->barangay,
-                    'zip_code' => $firstOrder->zip_code,
-                    'province' => $firstOrder->province,
-                    'city' => $firstOrder->city,
-                ],
-                'products' => $orderedGroup->map(function($item) {
-                    return [
-                        'product_id' => $item->product_id,
-                        'product_name' => $item->product_name,
-                        'quantity' => $item->quantity,
-                        'price' => $item->price,
-                    ];
-                })
-                ->unique('product_id')
-                ->values()
-                ->toArray()
-            ];
-        });
-
-        return response()->json($properFormat->values());
-    }
 
     public function on_delivery_by_deliveryman_id($deliveryman_id)
     {
@@ -108,6 +36,7 @@ class Deliveries_View_OnDelivery extends BaseController
                 'c.id as purchase_order_id',
                 'c.customer_name',
                 'd.quantity',
+                'd.no_of_damages', // Include no_of_damages from delivery_products
                 'e.price',
                 'f.id as product_id',
                 'f.product_name',
@@ -126,6 +55,12 @@ class Deliveries_View_OnDelivery extends BaseController
 
         $formattedData = $groupedOrders->map(function ($group) {
             $first = $group->first();
+
+            // Determine if there are any damages in the delivery products
+            $hasDamages = $group->contains(function ($item) {
+                return $item->no_of_damages > 0;
+            });
+
             return [
                 'purchase_order_id' => $first->purchase_order_id,
                 'delivery_id' => $first->delivery_id,
@@ -143,11 +78,13 @@ class Deliveries_View_OnDelivery extends BaseController
                     'province' => $first->province,
                     'city' => $first->city,
                 ],
+                'has_damages' => $hasDamages, // Add a flag to indicate if there are damages
                 'products' => $group->map(function ($item) {
                     return [
                         'product_id' => $item->product_id,
                         'product_name' => $item->product_name,
                         'quantity' => $item->quantity,
+                        'no_of_damages' => $item->no_of_damages, // Include no_of_damages in product details
                         'price' => $item->price,
                     ];
                 })->unique('product_id')->values(),
@@ -156,7 +93,4 @@ class Deliveries_View_OnDelivery extends BaseController
 
         return response()->json($formattedData->values());
     }
-
-
-
 }

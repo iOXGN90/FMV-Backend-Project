@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('returns', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('delivery_products_id')
+            $table->foreignId('delivery_product_id') // Corrected column name to delivery_product_id
                   ->constrained('delivery_products', 'id')
                   ->onDelete('cascade');
-            $table->integer('quantity');
-            $table->string('reason');
+            $table->enum('status', ['NR', 'P', 'S'])->default('NR'); // Adding status column as requested
+            $table->string('reason')->nullable(); // Made reason optional
             $table->timestamps();
         });
     }
@@ -27,6 +27,5 @@ return new class extends Migration
      */
     public function down(): void
     {
-
     }
 };

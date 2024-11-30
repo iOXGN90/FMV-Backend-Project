@@ -33,10 +33,15 @@ class Delivery_View_Report extends BaseController
 
             // Extract the price from the first product detail associated with the product
             $products = $delivery->deliveryProducts->map(function ($deliveryProduct) {
+                // Get the first return related to the delivery product
+                $return = $deliveryProduct->returns->first(); // Assuming only one return per delivery product or you want to get the first one
+
                 $productDetail = $deliveryProduct->product->productDetails->first(); // Assuming you want the first product detail
+
                 return [
                     'delivery_product_id' => $deliveryProduct->id, // Adding delivery_product ID
                     'product_id' => $deliveryProduct->product_id,
+                    'return_status' => $return ? $return->status : 'NR', // If no return found, default to 'NR'
                     'product_name' => $deliveryProduct->product->product_name,
                     'quantity_delivered' => $deliveryProduct->quantity,
                     'no_of_damages' => $deliveryProduct->no_of_damages,
@@ -66,7 +71,7 @@ class Delivery_View_Report extends BaseController
                 'products' => $products,
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Error in ViewReport:', ['error' => $e->getMessage()]);
+            Log::error('Error in ViewReport:', ['error' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
