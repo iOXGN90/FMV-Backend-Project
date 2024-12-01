@@ -164,8 +164,13 @@ class DeliveryController extends BaseController
     }
 
 
-    public function final_update($delivery_id)
+    public function final_update(Request $request, $delivery_id)
     {
+        // Validate the reason field in the request
+        $request->validate([
+            'reason' => 'required|string|max:255',
+        ]);
+
         // Start a database transaction to ensure all queries succeed or fail together
         DB::beginTransaction();
         try {
@@ -182,7 +187,10 @@ class DeliveryController extends BaseController
             // Update all related returns to 'S' (Success) where the delivery ID matches
             Returns::whereHas('deliveryProduct', function ($query) use ($delivery) {
                 $query->where('delivery_id', $delivery->id);
-            })->update(['status' => 'S']);
+            })->update([
+                'status' => 'S',
+                'reason' => $request->reason, // Set the reason provided in the request
+            ]);
 
             // Commit the transaction
             DB::commit();
@@ -194,11 +202,6 @@ class DeliveryController extends BaseController
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-
-
-
-
-
 
 
     // Delete a specific delivery by ID

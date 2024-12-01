@@ -11,28 +11,33 @@ class PurchaseOrder extends Model
 
     protected $guarded = [];
 
-    // Start Foreign Key Connection
+    // Start Foreign Key Connections
 
-        public function user(){
-            return $this->belongsTo(User::class);
-        }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
-        public function address(){
-            return $this->belongsTo(Address::class);
-        }
+    public function address()
+    {
+        return $this->belongsTo(Address::class);
+    }
 
-        public function productDetails(){
-            return $this->hasMany(ProductDetail::class);
-        }
+    public function productDetails()
+    {
+        return $this->hasMany(ProductDetail::class, 'purchase_order_id', 'id');
+    }
 
-        public function delivery(){
-            return $this->hasMany(Delivery::class);
-        }
+    public function deliveries()
+    {
+        return $this->hasMany(Delivery::class, 'purchase_order_id', 'id'); // Rename to 'deliveries' for plural naming convention
+    }
 
-        public function saleType(){
-            return $this->belongsTo(SaleType::class);
-        }
+    public function saleType()
+    {
+        return $this->belongsTo(SaleType::class);
+    }
 
-    // End Foreign Key Connection
-
+    // End Foreign Key Connections
 }
+

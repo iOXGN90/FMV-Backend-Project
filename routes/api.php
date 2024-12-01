@@ -30,10 +30,9 @@
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_WalkIn;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AdminConfirms;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfProductToDeliver;
-
     use App\Http\Controllers\API\Test\UploadImage;
 
-
+    use App\Http\Controllers\API\SalesInsight\PurchaseOrder_SalesInsights_View;
 // End Import
 
 /*
@@ -162,5 +161,8 @@
 
 
 
-Route::post('sample-image', [UploadImage::class, 'store']);
+// Sales and Insights
 
+    Route::get('Insights/Monthly-Data', [PurchaseOrder_SalesInsights_View::class, 'monthlyData']);
+
+    Route::get('/Insights/Monthly-Records', [PurchaseOrder_SalesInsights_View::class, 'recordPerMonths']);

@@ -26,8 +26,8 @@ class Product extends Model
             return $this->hasMany(ProductRestockOrder::class);
         }
 
-        public function damage(){
-            return $this->hasMany(Damage::class);
+        public function returns(){
+            return $this->hasMany(Returns::class);
         }
 
         public function deliveryProduct(){

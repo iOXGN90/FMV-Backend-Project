@@ -14,7 +14,7 @@ class Delivery extends Model
     // Foreign Key Connections
     public function purchaseOrder()
     {
-        return $this->belongsTo(PurchaseOrder::class);
+        return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id', 'id');
     }
 
     public function user()
@@ -29,7 +29,7 @@ class Delivery extends Model
 
     public function deliveryProducts()
     {
-        return $this->hasMany(DeliveryProduct::class, 'delivery_id');
+        return $this->hasMany(DeliveryProduct::class, 'delivery_id', 'id');
     }
 
 }

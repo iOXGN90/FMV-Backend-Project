@@ -14,11 +14,11 @@ class DeliveryProduct extends Model
     // Foreign Key Connections
     public function delivery()
     {
-        return $this->belongsTo(Delivery::class);
+        return $this->belongsTo(Delivery::class, 'delivery_id', 'id');
     }
 
     public function product(){
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class, 'product_id');
     }
 
     public function returns(){
