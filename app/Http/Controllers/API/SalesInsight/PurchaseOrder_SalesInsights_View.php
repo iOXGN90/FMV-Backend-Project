@@ -136,18 +136,18 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         $responseData['TotalDamagesOfPurchaseOrder'] = number_format($totalHistoricalDamages, 2);
 
         // Calculate and format the contribution percentage
-        $totalCombinedRevenue = $totalRevenueCurrentMonth + $totalRevenuePreviousMonth;
-        if ($totalCombinedRevenue > 0) {
-            $contributionPercentage = ($totalRevenueCurrentMonth / $totalCombinedRevenue) * 100;
+        if ($totalRevenuePreviousMonth > 0) {
+            $contributionPercentage = ($totalRevenueCurrentMonth / $totalRevenuePreviousMonth) * 100;
             $responseData['ContributionPercentage'] = number_format($contributionPercentage, 2);
         } else {
-            $responseData['ContributionPercentage'] = '0.00%';
+            $responseData['ContributionPercentage'] = '0.00';
         }
 
         Log::info('Final Response Data:', $responseData);
 
         return response()->json($responseData, 200);
     }
+
 
 
 
