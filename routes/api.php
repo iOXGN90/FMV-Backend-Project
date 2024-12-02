@@ -97,7 +97,7 @@
 
         // Start Purchase Order - Delivery
             Route::post('purchase-orders-delivery', [PurchaseOrderController::class, 'create_purchase_order_delivery']);
-            Route::put('purchase-orders-delivery', [PurchaseOrderController::class, 'update']);
+            // Route::put('purchase-orders-delivery', [PurchaseOrderController::class, 'update']);
         // End Delivery
 
         // Start Walk in
