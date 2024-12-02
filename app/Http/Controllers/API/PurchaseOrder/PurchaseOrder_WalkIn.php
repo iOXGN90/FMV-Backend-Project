@@ -39,10 +39,11 @@ class PurchaseOrder_WalkIn extends BaseController
 
         DB::beginTransaction();
         try {
-            // Default address for the shop
+            // Default address for the shop, including the city
             $addressData = $request->input('address', [
                 'street' => 'Masterson',
                 'barangay' => 'Lumbia',
+                'city' => 'Cagayan de Oro City',
                 'zip_code' => 9000,
                 'province' => 'Misamis Oriental',
             ]);

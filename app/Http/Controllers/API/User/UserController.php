@@ -14,6 +14,15 @@ use App\Http\Controllers\API\BaseController;
 class UserController extends BaseController
 {
 
+    public function limited(): JsonResponse
+    {
+        // Get all users
+        $users = User::all();
+
+        return response()->json(['success' => 'All users retrieved successfully.', 'data' => $users], 200);
+    }
+
+
 // Start VIEW ALL USER
     /**
      * Display a listing of the users.
@@ -22,7 +31,8 @@ class UserController extends BaseController
      */
     public function index(): JsonResponse
     {
-        $users = User::all();
+        // Paginate the users, 20 per page
+        $users = User::paginate(20);
 
         return response()->json(['success' => 'Users retrieved successfully.', 'data' => $users], 200);
     }

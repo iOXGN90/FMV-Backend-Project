@@ -6,6 +6,7 @@
     use Illuminate\Support\Facades\Route;
     use App\Http\Controllers\API\User\UserTypeController;
     use App\Http\Controllers\API\User\UserController;
+    use App\Http\Controllers\API\User\User_ViewOverview;
 
     use App\Http\Controllers\API\Product\CategoryController;
     use App\Http\Controllers\API\Product\Product_View;
@@ -15,7 +16,6 @@
     use App\Http\Controllers\API\Deliveries\DeliveryController;
     use App\Http\Controllers\API\Deliveries\Deliveries_View_OnDelivery_EmployeeID;
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Pending;
-    use App\Http\Controllers\API\Deliveries\Deliveries_View_Failed;
     use App\Http\Controllers\API\Deliveries\Deliveries_View_Success;
     use App\Http\Controllers\API\Deliveries\Deliveries_View;
 
@@ -30,7 +30,6 @@
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_WalkIn;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AdminConfirms;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfProductToDeliver;
-    use App\Http\Controllers\API\Test\UploadImage;
 
     use App\Http\Controllers\API\SalesInsight\PurchaseOrder_SalesInsights_View;
 // End Import
@@ -63,7 +62,8 @@
     Route::get('users/{id}', [UserController::class, 'user_by_id']);
     Route::put('users/{id}', [UserController::class, 'update']);
     Route::delete('users/{id}', [UserController::class, 'destroy']);
-// End User
+    Route::get('users-limited', [UserController::class, 'limited']);
+    // End User
 
 
 // Start Category
@@ -92,18 +92,18 @@
 
         Route::get('purchase-orders-get-remaining-balance/{purchaseOrderId}', [PurchaseOrder_GetRemainingBalanceOfProductToDeliver::class, 'getRemainingQuantities']);
 
-        Route::get('purchase-orders-walk-in', [PurchaseOrder_ViewWalkIns::class, 'index_walk_in']);
         //! End View All Purchase Order
 
         // Start Purchase Order - Delivery
-            Route::post('purchase-orders-delivery', [PurchaseOrderController::class, 'create_purchase_order_delivery']);
-            Route::post('/purchase-orders/{id}/update-date', [PurchaseOrderController::class, 'updatePurchaseOrderDate']);
+        Route::post('purchase-orders-delivery', [PurchaseOrderController::class, 'create_purchase_order_delivery']);
+        Route::post('/purchase-orders/{id}/update-date', [PurchaseOrderController::class, 'updatePurchaseOrderDate']);
 
-            Route::put('purchase-orders-delivery', [PurchaseOrderController::class, 'update']);
+        Route::put('purchase-orders-delivery', [PurchaseOrderController::class, 'update']);
         // End Delivery
 
         // Start Walk in
-            Route::post('purchase-orders-walk-in', [PurchaseOrder_WalkIn::class, 'create_walk_in']);
+            Route::get('purchase-orders/walk-in', [PurchaseOrder_ViewWalkIns::class, 'index_walk_in']);
+            Route::post('purchase-orders/create/walk-in', [PurchaseOrder_WalkIn::class, 'create_walk_in']);
         // End Walk in
 
     //! Start Assign Delivery
@@ -126,7 +126,6 @@
         Route::get('my-deliveries/pending/{deliveryman_id}', [Deliveries_View_Pending::class, 'pending_deliveries_by_id']);
 
         Route::get('my-deliveries/successful', [Deliveries_View_Success::class, 'successful_deliveries']);
-        Route::get('my-deliveries/failed', [Deliveries_View_Failed::class, 'failed_deliveries']);
 
 
         // Start View Report
