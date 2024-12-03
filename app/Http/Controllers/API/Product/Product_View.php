@@ -63,7 +63,7 @@ class Product_View extends BaseController
     public function index_overview(Request $request)
     {
         // Validate or set default values
-        $maxQuantity = $request->input('maxQuantity', 250);  // Default to 100 if not specified
+        $maxQuantity = $request->input('maxQuantity', 1000);  // Default to 100 if not specified
 
         // Fetch products where quantity is less than or equal to $maxQuantity
         $products = Product::where('quantity', '<=', $maxQuantity)
