@@ -30,7 +30,7 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                 ->leftJoin('product_details', 'products.id', '=', 'product_details.product_id')
                 ->leftJoin('users as delivery_user', 'deliveries.user_id', '=', 'delivery_user.id')
                 ->leftJoin('users as admin_user', 'purchase_orders.user_id', '=', 'admin_user.id')
-                ->leftJoin('returns', 'delivery_products.id', '=', 'returns.delivery_products_id') // Include the returns table
+                ->leftJoin('returns', 'delivery_products.id', '=', 'returns.delivery_product_id') // Corrected column and table name
                 ->where('purchase_orders.id', $id)
                 ->select(
                     'purchase_orders.*',
@@ -46,16 +46,16 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                     'deliveries.created_at as delivery_date',
                     'deliveries.updated_at as updated_date',
                     'delivery_user.name as delivery_man_name',
-                    'delivery_products.id as delivery_product_id',  // Added delivery_product_id
+                    'delivery_products.id as delivery_product_id',
                     'delivery_products.product_id',
                     'delivery_products.quantity as delivery_product_quantity',
                     'delivery_products.no_of_damages',
                     'product_details.price',
                     'products.product_name',
                     'returns.id as return_id',
-                    'returns.quantity as return_quantity',
+                    'returns.status as return_status',
                     'returns.reason as return_reason',
-                    'returns.created_at as return_date' // Assuming the correct column name is `created_at`
+                    'returns.created_at as return_date'
                 )
                 ->get();
 
@@ -75,7 +75,7 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                     $returns = $productItems->map(function ($item) {
                         return [
                             'return_id' => $item->return_id,
-                            'quantity' => $item->return_quantity,
+                            'status' => $item->return_status,
                             'reason' => $item->return_reason,
                             'date' => $item->return_date,
                         ];
@@ -85,7 +85,7 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                     })->values();
 
                     return [
-                        'delivery_product_id' => $firstProductItem->delivery_product_id, // Include delivery_product_id
+                        'delivery_product_id' => $firstProductItem->delivery_product_id,
                         'product_name' => $firstProductItem->product_name,
                         'quantity' => $firstProductItem->delivery_product_quantity,
                         'price' => $firstProductItem->price,
@@ -104,7 +104,6 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                     'products' => $uniqueProducts,
                 ];
             })->filter(function ($delivery) {
-                // Remove deliveries with all null fields (if there’s no delivery_id, delivery_no, etc.)
                 return $delivery['delivery_id'] !== null || $delivery['delivery_no'] !== null;
             })->values();
 
@@ -136,6 +135,8 @@ class PurchaseOrder_ViewDeliveries extends BaseController
             return response()->json(['error' => 'Something went wrong while retrieving the data.'], 500);
         }
     }
+
+
 
 
 

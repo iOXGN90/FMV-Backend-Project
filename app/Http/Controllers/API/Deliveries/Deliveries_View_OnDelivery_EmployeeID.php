@@ -16,15 +16,32 @@ use Illuminate\Http\Request;
 class Deliveries_View_OnDelivery_EmployeeID extends BaseController
 {
 
-    public function on_delivery_by_deliveryman_id($deliveryman_id)
+    public function on_delivery_by_deliveryman_id($deliveryman_id, Request $request)
     {
+        $status = $request->query('status');
+
+        if (!$status) {
+            return response()->json([
+                'error' => 'Status is required'
+            ], 400); // Bad request error
+        }
+
+        // Validate status
+        $validStatuses = ['OD', 'F', 'S']; // Define valid statuses
+        if (!in_array($status, $validStatuses)) {
+            return response()->json([
+                'error' => 'Invalid status'
+            ], 400); // Invalid status error
+        }
+
+        // Build the query
         $data = DB::table('deliveries as a')
-            ->join('users as b', 'b.id', '=', 'a.user_id') // Join users (deliverymen)
-            ->join('purchase_orders as c', 'c.id', '=', 'a.purchase_order_id') // Join purchase orders
-            ->join('delivery_products as d', 'a.id', '=', 'd.delivery_id') // Join delivery products
-            ->join('products as f', 'f.id', '=', 'd.product_id') // Join products directly with delivery_products
-            ->join('product_details as e', 'f.id', '=', 'e.product_id') // Join product details through products
-            ->join('addresses as g', 'g.id', '=', 'c.address_id') // Join addresses
+            ->join('users as b', 'b.id', '=', 'a.user_id')
+            ->join('purchase_orders as c', 'c.id', '=', 'a.purchase_order_id')
+            ->join('delivery_products as d', 'a.id', '=', 'd.delivery_id')
+            ->join('products as f', 'f.id', '=', 'd.product_id')
+            ->join('product_details as e', 'f.id', '=', 'e.product_id')
+            ->join('addresses as g', 'g.id', '=', 'c.address_id')
             ->select(
                 'a.id as delivery_id',
                 'a.delivery_no',
@@ -32,11 +49,11 @@ class Deliveries_View_OnDelivery_EmployeeID extends BaseController
                 DB::raw("DATE_FORMAT(a.created_at, '%m/%d/%Y') as date"),
                 'b.id as deliveryman_id',
                 'b.name as deliveryman_name',
-                'd.id as delivery_product_id', // Include delivery_product_id
+                'd.id as delivery_product_id',
                 'c.id as purchase_order_id',
                 'c.customer_name',
                 'd.quantity',
-                'd.no_of_damages', // Include no_of_damages from delivery_products
+                'd.no_of_damages',
                 'e.price',
                 'f.id as product_id',
                 'f.product_name',
@@ -46,17 +63,26 @@ class Deliveries_View_OnDelivery_EmployeeID extends BaseController
                 'g.province',
                 'g.city'
             )
-            ->where('a.status', '=', 'OD')
-            ->where('a.user_id', '=', $deliveryman_id) // Filter by specific deliveryman_id (user_id)
+            ->where('a.status', '=', $status)
+            ->where('a.user_id', '=', $deliveryman_id)
             ->orderBy('c.id')
             ->get();
 
+        // Handle empty results
+        if ($data->isEmpty()) {
+            return response()->json([
+                'message' => 'No deliveries found for the given status.'
+            ], 404);
+        }
+
+        // Group by purchase_order_id
         $groupedOrders = $data->groupBy('purchase_order_id');
 
+        // Format data for the response
         $formattedData = $groupedOrders->map(function ($group) {
             $first = $group->first();
 
-            // Determine if there are any damages in the delivery products
+            // Check if there are any damages
             $hasDamages = $group->contains(function ($item) {
                 return $item->no_of_damages > 0;
             });
@@ -66,7 +92,7 @@ class Deliveries_View_OnDelivery_EmployeeID extends BaseController
                 'delivery_id' => $first->delivery_id,
                 'delivery_no' => $first->delivery_no,
                 'deliveryman_id' => $first->deliveryman_id,
-                'delivery_product_id' => $first->delivery_product_id, // Include delivery_product_id here
+                'delivery_product_id' => $first->delivery_product_id,
                 'deliveryman_name' => $first->deliveryman_name,
                 'customer_name' => $first->customer_name,
                 'status' => $first->status,
@@ -78,19 +104,20 @@ class Deliveries_View_OnDelivery_EmployeeID extends BaseController
                     'province' => $first->province,
                     'city' => $first->city,
                 ],
-                'has_damages' => $hasDamages, // Add a flag to indicate if there are damages
+                'has_damages' => $hasDamages,
                 'products' => $group->map(function ($item) {
                     return [
                         'product_id' => $item->product_id,
                         'product_name' => $item->product_name,
                         'quantity' => $item->quantity,
-                        'no_of_damages' => $item->no_of_damages, // Include no_of_damages in product details
+                        'no_of_damages' => $item->no_of_damages,
                         'price' => $item->price,
                     ];
-                })->unique('product_id')->values(),
+                })->values(),
             ];
         });
 
         return response()->json($formattedData->values());
     }
+
 }
