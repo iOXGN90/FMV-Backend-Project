@@ -156,10 +156,21 @@ class PurchaseOrder_SalesInsights_View extends BaseController
 
     public function recordPerMonths(Request $request)
     {
+        // Get the year from the query parameters, default to the current year
         $year = $request->query('year', Carbon::now()->year);
 
+        // Fetch distinct years from the PurchaseOrder table
+        $availableYears = PurchaseOrder::selectRaw('YEAR(created_at) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year'); // Retrieve available years as an array
+
+        // Initialize the array to hold monthly data
         $monthlyData = [];
+
+        // Loop through each month (1 to 12)
         for ($month = 1; $month <= 12; $month++) {
+            // Get the purchase orders for the specific year and month
             $purchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
                 ->whereYear('created_at', $year)
                 ->whereMonth('created_at', $month)
@@ -169,6 +180,7 @@ class PurchaseOrder_SalesInsights_View extends BaseController
             $totalRevenue = 0;
             $totalDamages = 0;
 
+            // Loop through the purchase orders and calculate revenue and damages
             foreach ($purchaseOrders as $order) {
                 foreach ($order->deliveries as $delivery) {
                     foreach ($delivery->deliveryProducts as $deliveryProduct) {
@@ -187,8 +199,10 @@ class PurchaseOrder_SalesInsights_View extends BaseController
                 }
             }
 
+            // Format the month name
             $formattedMonth = Carbon::create($year, $month, 1)->format('F');
 
+            // Add the monthly data to the array
             $monthlyData[] = [
                 'month' => $formattedMonth,
                 'total_revenue' => number_format($totalRevenue, 2),
@@ -196,11 +210,14 @@ class PurchaseOrder_SalesInsights_View extends BaseController
             ];
         }
 
+        // Return both the monthly data and available years in the response
         return response()->json([
             'year' => $year,
+            'available_years' => $availableYears,
             'data' => $monthlyData
         ], 200);
     }
+
 
 
 
