@@ -58,6 +58,7 @@
 
 // Start User
     Route::get('users', [UserController::class, 'index']);
+    Route::get('users/employee', [UserController::class, 'index_employee']);
     Route::post('users', [UserController::class, 'create']);
     Route::get('users/{id}', [UserController::class, 'user_by_id']);
     Route::put('users/{id}', [UserController::class, 'update']);
