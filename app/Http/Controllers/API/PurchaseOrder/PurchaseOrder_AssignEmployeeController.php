@@ -101,6 +101,13 @@ public function assign_employee(Request $request)
                 'updated_at' => now()
             ]);
 
+            // Deduct the product quantity after delivery
+            $product = Product::find($productDetail->product_id);
+            if ($product) {
+                $product->quantity -= $productDetailData['quantity'];
+                $product->save();
+            }
+
             $deliveryDetails[] = [
                 'delivery_no' => $delivery->delivery_no,
                 'product_id' => $productDetail->product_id,
@@ -130,6 +137,7 @@ public function assign_employee(Request $request)
         return response()->json(['error' => 'Assigning the employee failed: ' . $e->getMessage()], 500);
     }
 }
+
 
 
 

@@ -63,18 +63,10 @@ class PurchaseOrderController extends BaseController
             $purchaseOrderData['address_id'] = $address->id;
             $purchaseOrder = PurchaseOrder::create($purchaseOrderData);
 
-            // Create the product details and update the product quantities
+            // Create the product details (no product quantity update)
             foreach ($request->input('product_details') as $productDetailData) {
                 $productDetailData['purchase_order_id'] = $purchaseOrder->id;
                 ProductDetail::create($productDetailData);
-
-                // Update the product quantity
-                $product = Product::find($productDetailData['product_id']);
-                if ($product->quantity < $productDetailData['quantity']) {
-                    throw new \Exception('Not enough product available');
-                }
-                $product->quantity -= $productDetailData['quantity'];
-                $product->save();
             }
 
             DB::commit();
@@ -115,6 +107,7 @@ class PurchaseOrderController extends BaseController
             return response()->json(['error' => 'Error occurred while creating the purchase order: ' . $e->getMessage()], 500);
         }
     }
+
 
 
 
