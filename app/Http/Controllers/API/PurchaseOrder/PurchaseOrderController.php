@@ -109,8 +109,6 @@ class PurchaseOrderController extends BaseController
     }
 
 
-
-
     public function cancelPurchaseOrder($purchaseOrderId)
     {
         try {
@@ -162,122 +160,6 @@ class PurchaseOrderController extends BaseController
             return response()->json(['error' => 'Something went wrong while canceling the purchase order.'], 500);
         }
     }
-
-
-    public function updatePurchaseOrderDate(Request $request, $id)
-    {
-        Log::info('PUT request received for updating Purchase Order Date.', [
-            'request_data' => $request->all(),
-            'purchase_order_id' => $id
-        ]);
-
-        $validator = Validator::make($request->all(), [
-            'created_at' => 'required|date_format:Y-m-d H:i:s'
-        ]);
-
-        if ($validator->fails()) {
-            Log::error('Validation failed for updating Purchase Order Date.', [
-                'errors' => $validator->errors()
-            ]);
-
-            return response()->json($validator->errors(), 400);
-        }
-
-        $purchaseOrder = PurchaseOrder::find($id);
-
-        if (!$purchaseOrder) {
-            Log::error('Purchase Order not found.', ['purchase_order_id' => $id]);
-            return response()->json(['message' => 'Purchase Order not found'], 404);
-        }
-
-        $purchaseOrder->created_at = $request->input('created_at');
-        $purchaseOrder->save();
-
-        Log::info('Purchase Order date updated successfully.', [
-            'purchase_order_id' => $purchaseOrder->id,
-            'new_created_at' => $purchaseOrder->created_at
-        ]);
-
-        return response()->json(['message' => 'Purchase Order date updated successfully.'], 200);
-    }
-
-
-
-
-
-    // Update a specific purchase order with address and product details
-    // public function update(Request $request, $id)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'user_id' => 'required|exists:users,id',
-    //         'customer_name' => 'required|string|max:255',
-    //         'status' => 'required|in:P,F,S',
-    //         'sale_type_id' => 'required|exists:sale_types,id',
-    //         'address.street' => 'sometimes|required|string|max:255',
-    //         'address.barangay' => 'sometimes|required|string|max:255',
-    //         'address.city' => 'sometimes|required|string|max:255',
-    //         'address.zip_code' => 'sometimes|required|integer',
-    //         'address.province' => 'sometimes|required|string|max:255',
-    //         'product_details' => 'sometimes|array',
-    //         'product_details.*.product_id' => 'required_with:product_details|exists:products,id',
-    //         'product_details.*.price' => 'required_with:product_details|numeric',
-    //         'product_details.*.quantity' => 'required_with:product_details|integer|min:1',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json($validator->errors(), 400);
-    //     }
-
-    //     $purchaseOrder = PurchaseOrder::find($id);
-
-    //     if (is_null($purchaseOrder)) {
-    //         return response()->json(['message' => 'Purchase Order not found'], 404);
-    //     }
-
-    //     DB::beginTransaction();
-    //     try {
-    //         // Restore the product quantities for the existing product details
-    //         foreach ($purchaseOrder->productDetails as $existingProductDetail) {
-    //             $product = Product::find($existingProductDetail->product_id);
-    //             $product->quantity += $existingProductDetail->quantity;
-    //             $product->save();
-    //         }
-
-    //         // Update the purchase order
-    //         $purchaseOrder->update($request->only(['user_id', 'customer_name', 'status', 'sale_type_id']));
-
-    //         // Update the address if provided
-    //         if ($request->has('address')) {
-    //             $purchaseOrder->address->update($request->input('address'));
-    //         }
-
-    //         // Update the product details if provided
-    //         if ($request->has('product_details')) {
-    //             // Delete existing product details
-    //             $purchaseOrder->productDetails()->delete();
-
-    //             // Create new product details and update the product quantities
-    //             foreach ($request->input('product_details') as $productDetailData) {
-    //                 $productDetailData['purchase_order_id'] = $purchaseOrder->id;
-    //                 ProductDetail::create($productDetailData);
-
-    //                 // Update the product quantity
-    //                 $product = Product::find($productDetailData['product_id']);
-    //                 if ($product->quantity < $productDetailData['quantity']) {
-    //                     throw new \Exception('Not enough product available');
-    //                 }
-    //                 $product->quantity -= $productDetailData['quantity'];
-    //                 $product->save();
-    //             }
-    //         }
-
-    //         DB::commit();
-    //         return response()->json($purchaseOrder->load(['address', 'productDetails']));
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-    //         return response()->json(['error' => 'Error occurred while updating the purchase order: ' . $e->getMessage()], 500);
-    //     }
-    // }
 
 
     // Delete a specific purchase order by ID

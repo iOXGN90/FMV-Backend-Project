@@ -138,11 +138,6 @@ class PurchaseOrder_ViewDeliveries extends BaseController
 
 
 
-
-
-
-
-
     // Get all Purchase Orders based on filter
     public function index_purchase_order(Request $request)
     {

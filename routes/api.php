@@ -29,7 +29,8 @@
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_ViewWalkIns;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_WalkIn;
     use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AdminConfirms;
-    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfProductToDeliver;
+use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_Edit;
+use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfProductToDeliver;
 
     use App\Http\Controllers\API\SalesInsight\PurchaseOrder_SalesInsights_View;
 // End Import
@@ -166,5 +167,10 @@
 // Sales and Insights
 
     Route::get('Insights/Monthly-Data', [PurchaseOrder_SalesInsights_View::class, 'monthlyData']);
-
     Route::get('/Insights/Monthly-Records', [PurchaseOrder_SalesInsights_View::class, 'recordPerMonths']);
+
+// EDIT and Cancel
+
+    Route::get('PurchaseOrder/View/{purchase_order_id}', [PurchaseOrder_Edit::class, 'getPurchaseOrderDetails']);
+
+    Route::post('PurchaseOrder/Edit/{purchase_order_id}/Update', [PurchaseOrder_Edit::class, 'update_purchase_order']);
