@@ -184,28 +184,52 @@ class UserController extends BaseController
      */
 
      public function login(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'username' => 'required|string|max:255',
-            'password' => 'required|string|min:5',
-        ]);
+{
+    // Validate the login input
+    $validator = Validator::make($request->all(), [
+        'username' => 'required|string|max:255',
+        'password' => 'required|string|min:5',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 422);
-        }
-
-        $credentials = $request->only('username', 'password');
-
-        if (!Auth::attempt($credentials)) {
-            return response()->json(['error' => 'Invalid credentials'], 401);
-        }
-
-        /** @var \App\Models\User $user **/
-        $user = Auth::user();
-        $token = $user->createToken('MyApp')->accessToken;
-
-        return response()->json(['success' => 'User logged in successfully.', 'token' => $token, 'user' => $user], 200);
+    // Return validation errors if validation fails
+    if ($validator->fails()) {
+        return response()->json(['error' => $validator->errors()], 422);
     }
+
+    $credentials = $request->only('username', 'password');
+
+    // Check user credentials
+    if (!Auth::attempt($credentials)) {
+        return response()->json(['error' => 'Invalid credentials'], 401);
+    }
+
+    // Retrieve the authenticated user
+    /** @var \App\Models\User $user **/
+    $user = Auth::user();
+
+    // Check if the user has an associated user type
+    $userType = $user->userType; // Assuming you've defined a relationship in the User model
+
+    if (!$userType) {
+        return response()->json(['error' => 'User type not found for this account.'], 403);
+    }
+
+    // Generate an access token
+    $token = $user->createToken('MyApp')->accessToken;
+
+    return response()->json([
+        'success' => 'User logged in successfully.',
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'user_type' => $userType->user_type, // Include user type name
+            'user_type_id' => $userType->id, // Include user type ID
+        ],
+    ], 200);
+}
+
 
  // End LOGIN
 
