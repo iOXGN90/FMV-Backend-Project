@@ -20,17 +20,47 @@ class UserTypeController extends BaseController
     public function create(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'user_type',
+            'user_type' => 'required|string|max:255|unique:user_types,user_type',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['error' => $validator->errors()], 422);
         }
 
-        $userType = UserType::create($request->all());
+        try {
+            $userType = UserType::create($request->only('user_type'));
 
-        return response()->json(['success' => 'User type created successfully.', 'data' => $userType], 201);
+            return response()->json(['success' => 'User type created successfully.', 'data' => $userType], 201);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'An unexpected error occurred.'], 500);
+        }
     }
+
+    public function update(Request $request, $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'user_type' => 'required|string|max:255|unique:user_types,user_type,' . $id,
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()], 422);
+        }
+
+        $userType = UserType::find($id);
+
+        if (is_null($userType)) {
+            return response()->json(['error' => 'User type not found.'], 404);
+        }
+
+        try {
+            $userType->update($request->only('user_type'));
+
+            return response()->json(['success' => 'User type updated successfully.', 'data' => $userType], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'An unexpected error occurred.'], 500);
+        }
+    }
+
 
         /**
      * View all user types.
@@ -59,8 +89,17 @@ class UserTypeController extends BaseController
             return response()->json(['error' => 'User type not found.'], 404);
         }
 
-        $userType->delete();
+        // Check if there are users associated with this user type
+        if ($userType->users()->exists()) {
+            return response()->json([
+                'error' => 'Cannot delete user type. There are users associated with this user type.'
+            ], 400);
+        }
 
-        return response()->json(['success' => 'User type deleted successfully.'], 200);
+        $userType->delete(); // Proceed with the soft delete
+
+        return response()->json(['success' => 'User type soft deleted successfully.'], 200);
     }
+
+
 }

@@ -12,12 +12,6 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-
-     */
     protected $fillable = [
         'user_type_id',
         'name',
@@ -27,43 +21,34 @@ class User extends Authenticatable
         'number',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array
-
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array
-
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
 
-// Start Foreign Key Connection
-
-    public function userType(){
+    // Start Foreign Key Connection
+    public function userType()
+    {
         return $this->belongsTo(UserType::class);
     }
 
-    public function productRestockOrder(){
+    public function productRestockOrder()
+    {
         return $this->hasMany(ProductRestockOrder::class);
     }
 
-    public function purchaseOrder(){
+    public function purchaseOrder()
+    {
         return $this->hasMany(PurchaseOrder::class);
     }
-    public function deliveries(){
+
+    public function deliveries()
+    {
         return $this->hasMany(Delivery::class);
     }
-// End Foreign Key Connection
-
+    // End Foreign Key Connection
 }

@@ -8,6 +8,7 @@ use App\Models\Category;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class CategoryController extends BaseController
 {
@@ -31,18 +32,22 @@ class CategoryController extends BaseController
      */
     public function create(Request $request): JsonResponse
     {
+        // Validate the incoming request
         $validator = Validator::make($request->all(), [
-            'category_name' => 'required|string|max:255',
+            'category_name' => 'required|string|max:255|unique:categories,category_name',
         ]);
 
+        // Check if validation fails
         if ($validator->fails()) {
             return response()->json(['error' => $validator->errors()], 422);
         }
 
+        // Create the new category
         $category = Category::create($request->all());
 
         return response()->json(['success' => 'Category created successfully.', 'data' => $category], 201);
     }
+
 
     /**
      * Display the specified category.
@@ -70,24 +75,39 @@ class CategoryController extends BaseController
      */
     public function update(Request $request, $id): JsonResponse
     {
+        // Validate input
         $validator = Validator::make($request->all(), [
-            'category_name' => 'required|string|max:255',
+            'category_name' => 'required|string|max:255|unique:categories,category_name,' . $id,
         ]);
 
+        // Handle validation errors
         if ($validator->fails()) {
             return response()->json(['error' => $validator->errors()], 422);
         }
 
+        // Find the category
         $category = Category::find($id);
 
+        // Handle category not found
         if (is_null($category)) {
             return response()->json(['error' => 'Category not found.'], 404);
         }
 
-        $category->update($request->all());
+        try {
+            // Update the category
+            $category->update($request->only('category_name'));
 
-        return response()->json(['success' => 'Category updated successfully.', 'data' => $category], 200);
+            // Return success response
+            return response()->json([
+                'success' => 'Category updated successfully.',
+                'data' => $category
+            ], 200);
+        } catch (\Exception $e) {
+            // Handle unexpected errors
+            return response()->json(['error' => 'An error occurred while updating the category.'], 500);
+        }
     }
+
 
     /**
      * Remove the specified category from storage.
@@ -100,11 +120,23 @@ class CategoryController extends BaseController
         $category = Category::find($id);
 
         if (is_null($category)) {
+            Log::warning("Attempted to delete a category that does not exist. Category ID: $id");
             return response()->json(['error' => 'Category not found.'], 404);
         }
 
-        $category->delete();
+        // Check if there are products associated with this category
+        if ($category->products()->exists()) {
+            Log::info("Attempt to delete category with associated products. Category ID: $id");
+            return response()->json([
+                'error' => 'Cannot delete category. There are products associated with this category.'
+            ], 400);
+        }
+
+        Log::info("Category deleted successfully. Category ID: $id, Category Name: {$category->category_name}");
+        $category->delete(); // Soft delete
 
         return response()->json(['success' => 'Category deleted successfully.'], 200);
     }
+
+
 }

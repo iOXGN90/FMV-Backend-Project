@@ -54,7 +54,8 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
 // Start User type
     Route::post('user-type', [UserTypeController::class, 'create']);
     Route::get('user-type', [UserTypeController::class, 'index']);
-    // Route::delete('user-type/{id}', [UserTypeController::class, 'delete']);
+    Route::post('user-type/{id}/update', [UserTypeController::class, 'update']);
+    Route::delete('user-type/{id}/delete', [UserTypeController::class, 'destroy']);
 // End User type
 
 // Start User
@@ -62,8 +63,8 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
     Route::get('users/employee', [UserController::class, 'index_employee']);
     Route::post('users', [UserController::class, 'create']);
     Route::get('users/{id}', [UserController::class, 'user_by_id']);
-    Route::put('users/{id}', [UserController::class, 'update']);
-    Route::delete('users/{id}', [UserController::class, 'destroy']);
+    Route::put('user/{id}/update', [UserController::class, 'update']);
+    Route::delete('users/{id}/delete', [UserController::class, 'destroy']);
     Route::get('users-limited', [UserController::class, 'limited']);
     // End User
 
@@ -72,12 +73,16 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
     Route::post('categories', [CategoryController::class, 'create']);
     Route::get('categories', [CategoryController::class, 'index']);
     Route::get('categories/{id}', [CategoryController::class, 'show']);
-    Route::put('categories/{id}', [CategoryController::class, 'update']);
+    Route::post('categories/{id}/update', [CategoryController::class, 'update']);
+    Route::delete('categories/{id}/delete', [CategoryController::class, 'destroy']);
     // Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
 // End Category
 
 // Start Sale Type -- apiResource uses all method in one call
-    Route::apiResource('sale-types', SaleTypeController::class);
+    Route::get('sale-type', [SaleTypeController::class, 'index']);
+    Route::post('sale-type', [SaleTypeController::class, 'store']);
+    Route::delete('sale-type/{id}/delete', [SaleTypeController::class, 'destroy']);
+    Route::post('sale-type/{sale_type_id}/update', [SaleTypeController::class, 'update']);
 // End Sale Type
 
 

@@ -29,7 +29,7 @@ class Product_View extends BaseController
         $totalValue = $query->sum(DB::raw('original_price * quantity'));
 
         // Add pagination
-        $products = $query->paginate(40);
+        $products = $query->paginate(30);
 
         // Format the response
         $formattedProducts = collect($products->items())->map(function ($product) {
