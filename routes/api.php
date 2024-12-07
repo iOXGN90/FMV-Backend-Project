@@ -63,7 +63,7 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
     Route::get('users/employee', [UserController::class, 'index_employee']);
     Route::post('users', [UserController::class, 'create']);
     Route::get('users/{id}', [UserController::class, 'user_by_id']);
-    Route::post('user/{id}/update', [UserController::class, 'update']);
+    Route::put('user/{id}/update', [UserController::class, 'update']);
     Route::delete('users/{id}/delete', [UserController::class, 'destroy']);
     Route::get('users-limited', [UserController::class, 'limited']);
     // End User
