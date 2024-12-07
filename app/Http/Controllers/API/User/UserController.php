@@ -123,10 +123,17 @@ class UserController extends BaseController
      */
     public function update(Request $request, $id): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
+        $input = $request->all();
+
+        // Convert empty email field to null
+        if (isset($input['email']) && empty($input['email'])) {
+            $input['email'] = null;
+        }
+
+        $validator = Validator::make($input, [
             'user_type_id' => 'sometimes|integer',
             'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|string|email|max:255|unique:users,email,' . $id,
+            'email' => 'nullable|string|email|max:255|unique:users,email,' . $id,
             'username' => 'sometimes|string|max:255|unique:users,username,' . $id,
             'password' => 'sometimes|string|min:8',
             'number' => 'sometimes|string|max:15',
@@ -142,8 +149,6 @@ class UserController extends BaseController
             return response()->json(['error' => 'User not found.'], 404);
         }
 
-        $input = $request->all();
-
         if (isset($input['password'])) {
             $input['password'] = Hash::make($input['password']);
         }
@@ -152,6 +157,8 @@ class UserController extends BaseController
 
         return response()->json(['success' => 'User updated successfully.', 'data' => $user], 200);
     }
+
+
 
 
     /**
