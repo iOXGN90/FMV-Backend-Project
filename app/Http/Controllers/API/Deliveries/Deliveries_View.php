@@ -80,8 +80,8 @@ class Deliveries_View extends BaseController
 
     public function getDeliveryProducts($deliveryId)
     {
-        // Fetch the delivery with its associated products
-        $delivery = Delivery::with('deliveryProducts.product')->find($deliveryId);
+        // Fetch the delivery with its associated products and purchase order
+        $delivery = Delivery::with(['deliveryProducts.product', 'purchaseOrder.productDetails'])->find($deliveryId);
 
         // Check if the delivery exists
         if (!$delivery) {
@@ -92,22 +92,66 @@ class Deliveries_View extends BaseController
         }
 
         // Format the products for the response
-        $formattedProducts = $delivery->deliveryProducts->map(function ($deliveryProduct) {
+        $formattedProducts = $delivery->deliveryProducts->map(function ($deliveryProduct) use ($delivery) {
+            // Fetch the product detail price
+            $productDetail = $delivery->purchaseOrder->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
+
             return [
                 'product_id' => $deliveryProduct->product->id,
-                'name' => $deliveryProduct->product->name,
+                'name' => $deliveryProduct->product->product_name,
                 'quantity' => $deliveryProduct->quantity,
-                'price' => $deliveryProduct->product->price,
+                'price' => $productDetail ? $productDetail->price : 'N/A', // Use product detail price or fallback
             ];
         });
 
         // Return the delivery and its products
         return response()->json([
             'delivery_id' => $delivery->id,
+            'purchase_order_id' => $delivery->purchaseOrder->id,
             'delivery_no' => $delivery->delivery_no,
             'products' => $formattedProducts,
         ]);
     }
+
+    public function updateDeliveryEmployee(Request $request, $deliveryId)
+    {
+        // Validate the request data
+        $validated = $request->validate([
+            'delivery_man_id' => 'required|exists:users,id', // Ensure the delivery man exists
+        ]);
+
+        // Find the delivery
+        $delivery = Delivery::find($deliveryId);
+
+        // Check if the delivery exists
+        if (!$delivery) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Delivery not found.',
+            ], 404);
+        }
+
+        // Update the delivery man
+        $delivery->user_id = $validated['delivery_man_id'];
+        $delivery->save();
+
+        // Return a success response
+        return response()->json([
+            'success' => true,
+            'message' => 'Delivery man updated successfully.',
+            'delivery' => [
+                'delivery_id' => $delivery->id,
+                'delivery_no' => $delivery->delivery_no,
+                'delivery_man' => [
+                    'user_id' => $delivery->user->id,
+                    'name' => $delivery->user->name,
+                    'number' => $delivery->user->number,
+                ],
+            ],
+        ]);
+    }
+
+
 
 
 

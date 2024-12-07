@@ -128,6 +128,9 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
     //! Start Get Pending/Success User Delivery
         // Route::get('my-deliveries/sample', [Deliveries_View::class, 'sample']);
         Route::get('deliveries/index', [Deliveries_View::class, 'index']);
+        Route::get('deliveries/{deliveryId}/product-lists', [Deliveries_View::class, 'getDeliveryProducts']);
+
+        Route::put('deliveries/{deliveryId}/update', [Deliveries_View::class, 'updateDeliveryEmployee']);
 
         Route::get('my-deliveries/pending', [Deliveries_View_Pending::class, 'pending_deliveries']);
         Route::get('my-deliveries/pending/{deliveryman_id}', [Deliveries_View_Pending::class, 'pending_deliveries_by_id']);
@@ -178,5 +181,4 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
 // EDIT and Cancel
 
     Route::get('PurchaseOrder/View/{purchase_order_id}', [PurchaseOrder_Edit::class, 'getPurchaseOrderDetails']);
-
     Route::post('PurchaseOrder/Edit/{purchase_order_id}/Update', [PurchaseOrder_Edit::class, 'update_purchase_order']);
