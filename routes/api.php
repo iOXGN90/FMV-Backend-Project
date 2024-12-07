@@ -155,6 +155,7 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
 
 // Start Product
     Route::post('products', [ProductController::class, 'create']);
+    Route::put('products/{id}', [ProductController::class, 'update']);
     Route::get('products', [Product_View::class, 'index']);
     Route::get('products-overview', [Product_View::class, 'index_overview']);
 // End Product

@@ -77,7 +77,25 @@ class CategoryController extends BaseController
     {
         // Validate input
         $validator = Validator::make($request->all(), [
-            'category_name' => 'required|string|max:255|unique:categories,category_name,' . $id,
+            'category_name' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) use ($id) {
+                    // Check if a category with the same name exists
+                    $existingCategory = Category::withTrashed()
+                        ->where('category_name', $value)
+                        ->where('id', '!=', $id)
+                        ->first();
+
+                    if ($existingCategory) {
+                        // If the category is not soft deleted, fail the validation
+                        if (is_null($existingCategory->deleted_at)) {
+                            $fail('The category name is already taken.');
+                        }
+                    }
+                },
+            ],
         ]);
 
         // Handle validation errors
@@ -107,6 +125,7 @@ class CategoryController extends BaseController
             return response()->json(['error' => 'An error occurred while updating the category.'], 500);
         }
     }
+
 
 
     /**

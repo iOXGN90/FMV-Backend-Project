@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class ProductController extends BaseController
 {
@@ -55,29 +56,40 @@ class ProductController extends BaseController
         return response()->json($Product);
     }
 
-    // Update the specified Product in storage.
     public function update(Request $request, $id)
     {
+        // Validate the request
         $validator = Validator::make($request->all(), [
             'category_id' => 'required|exists:categories,id',
             'original_price' => 'required|numeric',
-            'Product_name' => 'required|string|max:255',
+            'product_name' => 'required|string|max:255', // Ensure the field name matches the database schema
             'quantity' => 'required|integer',
         ]);
 
+        // Handle validation errors
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $Product = Product::find($id);
+        try {
+            // Find the product or fail
+            $Product = Product::findOrFail($id);
 
-        if (is_null($Product)) {
+            // Update the product with only allowed fields
+            $Product->update($request->only(['category_id', 'original_price', 'product_name', 'quantity']));
+
+            // Return a success response
+            return response()->json(['success' => true, 'data' => $Product], 200);
+
+        } catch (ModelNotFoundException $e) {
+            // Handle the case where the product is not found
             return response()->json(['message' => 'Product not found'], 404);
+        } catch (\Exception $e) {
+            // Handle other unexpected errors
+            return response()->json(['message' => 'An error occurred while updating the product'], 500);
         }
-
-        $Product->update($request->all());
-        return response()->json($Product);
     }
+
 
     // Remove the specified Product from storage.
     public function destroy($id)
