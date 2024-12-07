@@ -78,6 +78,36 @@ class Deliveries_View extends BaseController
         ]);
     }
 
+    public function getDeliveryProducts($deliveryId)
+    {
+        // Fetch the delivery with its associated products
+        $delivery = Delivery::with('deliveryProducts.product')->find($deliveryId);
+
+        // Check if the delivery exists
+        if (!$delivery) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Delivery not found.',
+            ], 404);
+        }
+
+        // Format the products for the response
+        $formattedProducts = $delivery->deliveryProducts->map(function ($deliveryProduct) {
+            return [
+                'product_id' => $deliveryProduct->product->id,
+                'name' => $deliveryProduct->product->name,
+                'quantity' => $deliveryProduct->quantity,
+                'price' => $deliveryProduct->product->price,
+            ];
+        });
+
+        // Return the delivery and its products
+        return response()->json([
+            'delivery_id' => $delivery->id,
+            'delivery_no' => $delivery->delivery_no,
+            'products' => $formattedProducts,
+        ]);
+    }
 
 
 

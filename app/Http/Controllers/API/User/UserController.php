@@ -124,12 +124,12 @@ class UserController extends BaseController
     public function update(Request $request, $id): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'user_type_id' => 'sometimes|required|integer',
-            'name' => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $id,
-            'username' => 'sometimes|required|string|max:255|unique:users,username,' . $id,
-            'password' => 'sometimes|required|string|min:8',
-            'number' => 'sometimes|required|string|max:15',
+            'user_type_id' => 'sometimes|integer',
+            'name' => 'sometimes|string|max:255',
+            'email' => 'sometimes|string|email|max:255|unique:users,email,' . $id,
+            'username' => 'sometimes|string|max:255|unique:users,username,' . $id,
+            'password' => 'sometimes|string|min:8',
+            'number' => 'sometimes|string|max:15',
         ]);
 
         if ($validator->fails()) {
@@ -152,6 +152,7 @@ class UserController extends BaseController
 
         return response()->json(['success' => 'User updated successfully.', 'data' => $user], 200);
     }
+
 
     /**
      * Remove the specified user from storage.
