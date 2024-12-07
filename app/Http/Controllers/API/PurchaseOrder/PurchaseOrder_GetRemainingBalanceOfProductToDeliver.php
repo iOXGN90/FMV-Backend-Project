@@ -12,7 +12,10 @@ class PurchaseOrder_GetRemainingBalanceOfProductToDeliver
         $data = DB::table('purchase_orders as po')
             ->join('product_details as pd', 'po.id', '=', 'pd.purchase_order_id')
             ->join('products as p', 'p.id', '=', 'pd.product_id')
-            ->leftJoin('deliveries as d', 'po.id', '=', 'd.purchase_order_id')
+            ->leftJoin('deliveries as d', function ($join) {
+                $join->on('po.id', '=', 'd.purchase_order_id')
+                     ->whereIn('d.status', ['OD', 'S']); // Include 'OD' and 'S' deliveries
+            })
             ->leftJoin('delivery_products as dp', function ($join) {
                 $join->on('d.id', '=', 'dp.delivery_id')
                      ->on('p.id', '=', 'dp.product_id'); // Ensure we are linking by product ID
@@ -57,19 +60,6 @@ class PurchaseOrder_GetRemainingBalanceOfProductToDeliver
 
         return response()->json($response);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 }

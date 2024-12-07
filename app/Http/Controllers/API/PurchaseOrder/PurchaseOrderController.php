@@ -162,6 +162,44 @@ class PurchaseOrderController extends BaseController
     }
 
 
+    public function updatePurchaseOrderDate(Request $request, $id)
+    {
+        Log::info('PUT request received for updating Purchase Order Date.', [
+            'request_data' => $request->all(),
+            'purchase_order_id' => $id
+        ]);
+
+        $validator = Validator::make($request->all(), [
+            'created_at' => 'required|date_format:Y-m-d H:i:s'
+        ]);
+
+        if ($validator->fails()) {
+            Log::error('Validation failed for updating Purchase Order Date.', [
+                'errors' => $validator->errors()
+            ]);
+
+            return response()->json($validator->errors(), 400);
+        }
+
+        $purchaseOrder = PurchaseOrder::find($id);
+
+        if (!$purchaseOrder) {
+            Log::error('Purchase Order not found.', ['purchase_order_id' => $id]);
+            return response()->json(['message' => 'Purchase Order not found'], 404);
+        }
+
+        $purchaseOrder->created_at = $request->input('created_at');
+        $purchaseOrder->save();
+
+        Log::info('Purchase Order date updated successfully.', [
+            'purchase_order_id' => $purchaseOrder->id,
+            'new_created_at' => $purchaseOrder->created_at
+        ]);
+
+        return response()->json(['message' => 'Purchase Order date updated successfully.'], 200);
+    }
+
+
     // Delete a specific purchase order by ID
     public function destroy($id)
     {
@@ -196,5 +234,4 @@ class PurchaseOrderController extends BaseController
             return response()->json(['error' => 'Error occurred while deleting the purchase order: ' . $e->getMessage()], 500);
         }
     }
-
 }

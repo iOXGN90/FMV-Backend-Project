@@ -271,14 +271,4 @@ class DeliveryController extends BaseController
          return response()->json($deliveries);
      }
 
-
-     private function logImageDetails($image, $path)
-     {
-         Log::info('Image uploaded:', [
-             'original_name' => $image->getClientOriginalName(), // Log original file name
-             'size' => $image->getSize(), // Log size in bytes
-             'mime_type' => $image->getClientMimeType(), // Log mime type (e.g., image/jpeg)
-             'stored_path' => $path // Log the path where the image is stored
-         ]);
-     }
 }

@@ -3,32 +3,33 @@
 
 // Start Import
 
-    use Illuminate\Support\Facades\Route;
-    use App\Http\Controllers\API\User\UserTypeController;
-    use App\Http\Controllers\API\User\UserController;
-    use App\Http\Controllers\API\User\User_ViewOverview;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\API\User\UserTypeController;
+use App\Http\Controllers\API\User\UserController;
+use App\Http\Controllers\API\User\User_ViewOverview;
 
-    use App\Http\Controllers\API\Product\CategoryController;
-    use App\Http\Controllers\API\Product\Product_View;
-    use App\Http\Controllers\API\Product\ProductRestockController;
-    use App\Http\Controllers\API\Product\ProductController;
+use App\Http\Controllers\API\Product\CategoryController;
+use App\Http\Controllers\API\Product\Product_View;
+use App\Http\Controllers\API\Product\ProductRestockController;
+use App\Http\Controllers\API\Product\ProductController;
 
-    use App\Http\Controllers\API\Deliveries\DeliveryController;
-    use App\Http\Controllers\API\Deliveries\Deliveries_View_OnDelivery_EmployeeID;
-    use App\Http\Controllers\API\Deliveries\Deliveries_View_Pending;
-    use App\Http\Controllers\API\Deliveries\Deliveries_View_Success;
-    use App\Http\Controllers\API\Deliveries\Deliveries_View;
+use App\Http\Controllers\API\Deliveries\DeliveryController;
+use App\Http\Controllers\API\Deliveries\Deliveries_View_OnDelivery_EmployeeID;
+use App\Http\Controllers\API\Deliveries\Deliveries_View_Pending;
+use App\Http\Controllers\API\Deliveries\Deliveries_View_Success;
+use App\Http\Controllers\API\Deliveries\Deliveries_View;
 
-    use App\Http\Controllers\API\Deliveries\Deliveries_Returns;
-    use App\Http\Controllers\api\deliveries\Delivery_View_Report;
+use App\Http\Controllers\API\Deliveries\Deliveries_Returns;
+use App\Http\Controllers\api\deliveries\Delivery_View_Report;
+use App\Http\Controllers\API\Deliveries\Deliveries_Cancel;
 
-    use App\Http\Controllers\API\PurchaseOrder\SaleTypeController;
-    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrderController;
-    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AssignEmployeeController;
-    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_ViewDeliveries;
-    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_ViewWalkIns;
-    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_WalkIn;
-    use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AdminConfirms;
+use App\Http\Controllers\API\PurchaseOrder\SaleTypeController;
+use App\Http\Controllers\API\PurchaseOrder\PurchaseOrderController;
+use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AssignEmployeeController;
+use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_ViewDeliveries;
+use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_ViewWalkIns;
+use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_WalkIn;
+use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AdminConfirms;
 use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_Edit;
 use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfProductToDeliver;
 
@@ -131,6 +132,7 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
         Route::get('deliveries/{deliveryId}/product-lists', [Deliveries_View::class, 'getDeliveryProducts']);
 
         Route::put('deliveries/{deliveryId}/update', [Deliveries_View::class, 'updateDeliveryEmployee']);
+        Route::put('deliveries/{deliveryId}/cancel', [Deliveries_Cancel::class, 'cancelDelivery']);
 
         Route::get('my-deliveries/pending', [Deliveries_View_Pending::class, 'pending_deliveries']);
         Route::get('my-deliveries/pending/{deliveryman_id}', [Deliveries_View_Pending::class, 'pending_deliveries_by_id']);

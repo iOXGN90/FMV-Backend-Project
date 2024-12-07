@@ -77,7 +77,8 @@ class PurchaseOrder_AssignEmployeeController extends BaseController
 
                 // Calculate the total delivered quantity for the product in this purchase order
                 $totalDeliveredQuantity = DeliveryProduct::whereHas('delivery', function ($query) use ($purchaseOrder) {
-                    $query->where('purchase_order_id', $purchaseOrder->id);
+                    $query->where('purchase_order_id', $purchaseOrder->id)
+                          ->whereIn('status', ['P', 'S']); // Include only 'Pending' or 'Successful' deliveries
                 })->where('product_id', $productDetailData['product_id'])
                   ->sum('quantity');
 
@@ -143,9 +144,9 @@ class PurchaseOrder_AssignEmployeeController extends BaseController
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Assigning the employee failed: ' . $e->getMessage()], 500);
-
         }
     }
+
 
 
 
