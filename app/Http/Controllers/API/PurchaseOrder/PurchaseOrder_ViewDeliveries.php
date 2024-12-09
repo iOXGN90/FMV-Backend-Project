@@ -136,15 +136,13 @@ class PurchaseOrder_ViewDeliveries extends BaseController
         }
     }
 
-
-
     // Get all Purchase Orders based on filter
     public function index_purchase_order(Request $request)
     {
         $statusFilter = $request->query('status', null); // Get the status query parameter if available
 
         // Get all purchase orders with related data
-        $purchaseOrders = PurchaseOrder::with(['address', 'productDetails.product'])
+        $deliveries = PurchaseOrder::with(['address', 'productDetails.product'])
                             ->where('sale_type_id', 1)
                             ->when($statusFilter && $statusFilter !== 'All', function ($query) use ($statusFilter) {
                                 return $query->where('status', $statusFilter);
@@ -152,7 +150,7 @@ class PurchaseOrder_ViewDeliveries extends BaseController
                             ->paginate(20); // Paginate the orders
 
         // Get the total count of purchase orders
-        $totalPurchaseOrders = PurchaseOrder::where('sale_type_id', 1)->count();
+        $totalDeliveries = PurchaseOrder::where('sale_type_id', 1)->count();
 
         // Calculate the total worth of all purchase orders
         $totalWorth = DB::table('product_details')
@@ -162,7 +160,7 @@ class PurchaseOrder_ViewDeliveries extends BaseController
             ->value('total_worth');
 
         // Map over the Paginator's items
-        $formattedOrders = collect($purchaseOrders->items())->map(function ($order) {
+        $formattedOrders = collect($deliveries->items())->map(function ($order) {
             return [
                 'purchase_order_id' => $order->id,
                 'sale_type_name' => $order->saleType->sale_type_name,
@@ -191,13 +189,13 @@ class PurchaseOrder_ViewDeliveries extends BaseController
         return response()->json([
             'orders' => $formattedOrders,
             'pagination' => [
-                'total' => $purchaseOrders->total(),
-                'perPage' => $purchaseOrders->perPage(),
-                'currentPage' => $purchaseOrders->currentPage(),
-                'lastPage' => $purchaseOrders->lastPage(),
+                'total' => $deliveries->total(),
+                'perPage' => $deliveries->perPage(),
+                'currentPage' => $deliveries->currentPage(),
+                'lastPage' => $deliveries->lastPage(),
             ],
             'summary' => [
-                'totalPurchaseOrders' => $totalPurchaseOrders, // Total number of purchase orders
+                'totalPurchaseOrders' => $totalDeliveries, // Total number of purchase orders
                 'totalWorth' => number_format($totalWorth, 2, '.', ''), // Total worth of all purchase orders
             ],
         ]);
@@ -280,11 +278,6 @@ class PurchaseOrder_ViewDeliveries extends BaseController
             ],
         ]);
     }
-
-
-
-
-
 
     // Get all Purchase Orders by status = 'P'
     public function pending_purchase_order()

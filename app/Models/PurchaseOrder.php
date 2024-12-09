@@ -35,7 +35,7 @@ class PurchaseOrder extends Model
 
     public function saleType()
     {
-        return $this->belongsTo(SaleType::class);
+        return $this->belongsTo(SaleType::class, 'sale_type_id');
     }
 
     // End Foreign Key Connections

@@ -148,15 +148,6 @@ class PurchaseOrder_AssignEmployeeController extends BaseController
     }
 
 
-
-
-
-
-
-
-
-
-
     // Remove assigned employee from a delivery
     public function remove_assigned_employee(Request $request)
     {
