@@ -50,7 +50,7 @@ class Deliveries_View_OnDelivery_EmployeeID extends BaseController
                 'b.id as deliveryman_id',
                 'b.name as deliveryman_name',
                 'd.id as delivery_product_id',
-                'c.id as purchase_order_id',
+                'c.id as purchase_order_id',  // Ensure this is included
                 'c.customer_name',
                 'd.quantity',
                 'd.no_of_damages',
@@ -65,7 +65,7 @@ class Deliveries_View_OnDelivery_EmployeeID extends BaseController
             )
             ->where('a.status', '=', $status)
             ->where('a.user_id', '=', $deliveryman_id)
-            ->orderBy('c.id')
+            ->orderBy('a.created_at')  // Order by created_at, so we get the latest deliveries
             ->get();
 
         // Handle empty results
@@ -75,37 +75,36 @@ class Deliveries_View_OnDelivery_EmployeeID extends BaseController
             ], 404);
         }
 
-        // Group by purchase_order_id
-        $groupedOrders = $data->groupBy('purchase_order_id');
+        // Group the data by delivery_id
+        $groupedData = $data->groupBy('delivery_id');
 
-        // Format data for the response
-        $formattedData = $groupedOrders->map(function ($group) {
-            $first = $group->first();
+        // Format the data
+        $formattedData = $groupedData->map(function ($deliveryItems) {
+            // Assume all items belong to the same delivery
+            $firstItem = $deliveryItems->first();
 
-            // Check if there are any damages
-            $hasDamages = $group->contains(function ($item) {
-                return $item->no_of_damages > 0;
-            });
+            // Check if there are any damages in the products of this delivery
+            $hasDamages = $deliveryItems->pluck('no_of_damages')->sum() > 0;
 
+            // Format the grouped delivery
             return [
-                'purchase_order_id' => $first->purchase_order_id,
-                'delivery_id' => $first->delivery_id,
-                'delivery_no' => $first->delivery_no,
-                'deliveryman_id' => $first->deliveryman_id,
-                'delivery_product_id' => $first->delivery_product_id,
-                'deliveryman_name' => $first->deliveryman_name,
-                'customer_name' => $first->customer_name,
-                'status' => $first->status,
-                'date' => $first->date,
+                'delivery_id' => $firstItem->delivery_id,
+                'delivery_no' => $firstItem->delivery_no,
+                'deliveryman_id' => $firstItem->deliveryman_id,
+                'deliveryman_name' => $firstItem->deliveryman_name,
+                'purchase_order_id' => $firstItem->purchase_order_id,  // Show purchase_order_id
+                'customer_name' => $firstItem->customer_name,
+                'status' => $firstItem->status,
+                'date' => $firstItem->date,
                 'address' => [
-                    'street' => $first->street,
-                    'barangay' => $first->barangay,
-                    'zip_code' => $first->zip_code,
-                    'province' => $first->province,
-                    'city' => $first->city,
+                    'street' => $firstItem->street,
+                    'barangay' => $firstItem->barangay,
+                    'zip_code' => $firstItem->zip_code,
+                    'province' => $firstItem->province,
+                    'city' => $firstItem->city,
                 ],
                 'has_damages' => $hasDamages,
-                'products' => $group->map(function ($item) {
+                'products' => $deliveryItems->map(function ($item) {
                     return [
                         'product_id' => $item->product_id,
                         'product_name' => $item->product_name,
@@ -113,11 +112,16 @@ class Deliveries_View_OnDelivery_EmployeeID extends BaseController
                         'no_of_damages' => $item->no_of_damages,
                         'price' => $item->price,
                     ];
-                })->values(),
+                })->toArray(),
             ];
         });
 
-        return response()->json($formattedData->values());
+        return response()->json($formattedData);
     }
+
+
+
+
+
 
 }
