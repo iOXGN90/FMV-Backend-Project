@@ -152,8 +152,6 @@ class PurchaseOrder_SalesInsights_View extends BaseController
 
 
 
-
-
     public function recordPerMonths(Request $request)
     {
         // Get the year from the query parameters, default to the current year
@@ -170,8 +168,8 @@ class PurchaseOrder_SalesInsights_View extends BaseController
 
         // Loop through each month (1 to 12)
         for ($month = 1; $month <= 12; $month++) {
-            // Get the purchase orders for the specific year and month
-            $purchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
+            // Get the purchase orders for the specific year and month with status = 'S'
+            $purchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts', 'saleType'])
                 ->whereYear('created_at', $year)
                 ->whereMonth('created_at', $month)
                 ->where('status', 'S') // Only successful purchase orders
@@ -182,18 +180,26 @@ class PurchaseOrder_SalesInsights_View extends BaseController
 
             // Loop through the purchase orders and calculate revenue and damages
             foreach ($purchaseOrders as $order) {
-                foreach ($order->deliveries as $delivery) {
-                    foreach ($delivery->deliveryProducts as $deliveryProduct) {
-                        // Calculate revenue and damages only for valid deliveries
-                        $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
+                if ($order->saleType->sale_type_name === 'Walk-In') {
+                    // Process Walk-In orders using productDetails
+                    foreach ($order->productDetails as $productDetail) {
+                        $totalRevenue += $productDetail->price * $productDetail->quantity;
+                    }
+                } else {
+                    // Process Delivery orders using deliveryProducts
+                    foreach ($order->deliveries as $delivery) {
+                        foreach ($delivery->deliveryProducts as $deliveryProduct) {
+                            // Calculate revenue and damages for valid deliveries
+                            $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
 
-                        if ($productDetail) {
-                            $productPrice = $productDetail->price;
-                            $quantity = $deliveryProduct->quantity;
-                            $damages = $deliveryProduct->no_of_damages;
+                            if ($productDetail) {
+                                $productPrice = $productDetail->price;
+                                $quantity = $deliveryProduct->quantity;
+                                $damages = $deliveryProduct->no_of_damages;
 
-                            $totalRevenue += $quantity * $productPrice;
-                            $totalDamages += $damages * $productPrice;
+                                $totalRevenue += $quantity * $productPrice;
+                                $totalDamages += $damages * $productPrice;
+                            }
                         }
                     }
                 }
@@ -218,6 +224,18 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         ], 200);
     }
 
+
+
+    // public function recordPerMonths(Request $request)
+    // {
+    //     // Fetch all purchase orders with related product details and deliveries
+    //     $purchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])->get();
+
+    //     // Optionally, you can log the number of fetched orders for debugging
+    //     Log::info("Fetched " . $purchaseOrders->count() . " purchase orders.");
+
+    //     return response()->json($purchaseOrders, 200);
+    // }
 
 
 

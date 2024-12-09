@@ -10,34 +10,68 @@ use Illuminate\Support\Facades\DB;
 
 class PurchaseOrder_ViewWalkIns extends BaseController
 {
-        //* Start View WalkIn
-        public function index_walk_in()
-        {
-            try {
-                $purchaseOrderWalkin = DB::table('purchase_orders as a')
-                    ->join('addresses as b', 'b.id', '=', 'a.address_id')
-                    ->join('product_details as c', 'c.purchase_order_id', '=', 'a.id')
-                    ->select(
-                        'a.id as purchase_order_id',
-                        'a.customer_name',
-                        'a.status',
-                        'a.created_at as purchase_date', // Update this if `created_at` is the correct column
-                        'b.street',
-                        'b.barangay',
-                        'b.city',
-                        'b.province',
-                        'c.product_id',
-                        'c.price',
-                        'c.quantity'
-                    )
-                    ->where('a.sale_type_id', 2)
-                    ->paginate(20);
+    public function index_walk_in()
+    {
+        try {
+            // Fetch raw data from the database
+            $purchaseOrders = DB::table('purchase_orders as a')
+                ->join('addresses as b', 'b.id', '=', 'a.address_id')
+                ->join('product_details as c', 'c.purchase_order_id', '=', 'a.id')
+                ->join('products as p', 'p.id', '=', 'c.product_id') // Join products for product name/details
+                ->select(
+                    'a.id as purchase_order_id',
+                    'a.customer_name',
+                    'a.status',
+                    'a.created_at as purchase_date',
+                    'b.street',
+                    'b.barangay',
+                    'b.city',
+                    'b.province',
+                    'b.zip_code',
+                    'c.product_id',
+                    'c.price',
+                    'c.quantity',
+                    'p.product_name'
+                )
+                ->where('a.sale_type_id', 2)
+                ->get();
 
-                return response()->json($purchaseOrderWalkin, 200);
-            } catch (\Exception $e) {
-                return response()->json(['error' => $e->getMessage()], 500);
+            // Group data by `purchase_order_id`
+            $groupedOrders = [];
+            foreach ($purchaseOrders as $order) {
+                if (!isset($groupedOrders[$order->purchase_order_id])) {
+                    $groupedOrders[$order->purchase_order_id] = [
+                        'purchase_order_id' => $order->purchase_order_id,
+                        'customer_name' => $order->customer_name,
+                        'status' => $order->status,
+                        'purchase_date' => $order->purchase_date,
+                        'address' => [
+                            'street' => $order->street,
+                            'barangay' => $order->barangay,
+                            'city' => $order->city,
+                            'province' => $order->province,
+                            'zip_code' => $order->zip_code,
+                        ],
+                        'products' => []
+                    ];
+                }
+                $groupedOrders[$order->purchase_order_id]['products'][] = [
+                    'product_id' => $order->product_id,
+                    'product_name' => $order->product_name,
+                    'price' => $order->price,
+                    'quantity' => $order->quantity
+                ];
             }
+
+            // Convert the associative array to an indexed array for JSON response
+            $groupedOrders = array_values($groupedOrders);
+
+            return response()->json($groupedOrders, 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
 
 
 

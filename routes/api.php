@@ -130,6 +130,7 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
         // Route::get('my-deliveries/sample', [Deliveries_View::class, 'sample']);
         Route::get('deliveries/index', [Deliveries_View::class, 'index']);
         Route::get('deliveries/{deliveryId}/product-lists', [Deliveries_View::class, 'getDeliveryProducts']);
+        Route::get('deliveries/overview', [Deliveries_View::class, 'deliveryCount']);
 
         Route::put('deliveries/{deliveryId}/update', [Deliveries_View::class, 'updateDeliveryEmployee']);
         Route::put('deliveries/{deliveryId}/cancel', [Deliveries_Cancel::class, 'cancelDelivery']);
@@ -144,6 +145,7 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
             Route::get('my-deliveries/on-deliveryman/{deliveryman_id}', [Deliveries_View_OnDelivery_EmployeeID::class, 'on_delivery_by_deliveryman_id']);
             Route::post('/deliveries/return', [Deliveries_Returns::class, 'createReturns']);
             Route::get('/deliveries/{delivery_id}/report', [Delivery_View_Report::class, 'ViewReport']);
+
         // End View Damages
 
         //! End Get Pending/Success User Delivery
@@ -172,7 +174,6 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
     Route::put('products-restock/{id}', [ProductRestockController::class, 'update']);
     Route::delete('products-restock', [ProductRestockController::class, 'destroy']);
 // End Product ReStocks
-
 
 
 // Sales and Insights

@@ -19,7 +19,7 @@ class Product_View extends BaseController
 
         // Filter by multiple categories
         if ($request->has('categories') && !empty($request->input('categories'))) {
-            $categories = $request->input('categories'); // Expect an array
+            $categories = $request->input('categories');
             $query->whereHas('category', function ($query) use ($categories) {
                 $query->whereIn('category_name', $categories);
             });
@@ -31,7 +31,14 @@ class Product_View extends BaseController
             $query->where('product_name', 'LIKE', "%{$search}%");
         }
 
-        // Calculate the total value of assets before applying pagination
+        // Add sorting with validation to prevent invalid columns
+        $validSortColumns = ['id', 'quantity', 'original_price', 'product_name'];  // Fix: Changed 'product_id' to 'id'
+        $sortBy = in_array($request->input('sort_by'), $validSortColumns) ? $request->input('sort_by') : 'id';  // Fix: Default to 'id'
+        $sortOrder = in_array($request->input('sort_order'), ['asc', 'desc']) ? $request->input('sort_order') : 'asc';
+
+        $query->orderBy($sortBy, $sortOrder);
+
+        // Calculate total value of assets
         $totalValue = $query->sum(DB::raw('original_price * quantity'));
 
         // Add pagination
@@ -40,10 +47,10 @@ class Product_View extends BaseController
         // Format the response
         $formattedProducts = collect($products->items())->map(function ($product) {
             return [
-                'product_id' => $product->id,
-                'category_name' => $product->category->category_name ?? 'Uncategorized', // Fallback for missing category
+                'product_id' => $product->id,  // 'id' is the correct column
+                'category_name' => $product->category->category_name ?? 'Uncategorized',
                 'product_name' => $product->product_name,
-                'original_price' => number_format($product->original_price, 2, '.', ''), // Ensure 2 decimal places
+                'original_price' => number_format($product->original_price, 2, '.', ''),
                 'quantity' => $product->quantity,
             ];
         });
@@ -56,9 +63,12 @@ class Product_View extends BaseController
                 'currentPage' => $products->currentPage(),
                 'lastPage' => $products->lastPage(),
             ],
-            'totalValue' => number_format($totalValue, 2, '.', ''), // Include total value for all products
+            'totalValue' => number_format($totalValue, 2, '.', ''),
         ]);
     }
+
+
+
 
 
 

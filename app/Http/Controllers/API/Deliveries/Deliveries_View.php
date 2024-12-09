@@ -151,6 +151,28 @@ class Deliveries_View extends BaseController
         ]);
     }
 
+    public function deliveryCount()
+    {
+        // Count deliveries with status 'S' (Success)
+        $successCount = Delivery::where('status', 'S')->count();
+
+        // Count deliveries with status 'OD' (On Delivery)
+        $onDeliveryCount = Delivery::where('status', 'OD')->count();
+
+        // Count deliveries with status 'P' (Pending)
+        $pendingCount = Delivery::where('status', 'P')->count();
+
+        // Count deliveries with status 'F' (Failed)
+        $failedCount = Delivery::where('status', 'F')->count();
+
+        // Return the counts as a response
+        return response()->json([
+            'success' => $successCount,
+            'on_delivery' => $onDeliveryCount,
+            'pending' => $pendingCount,
+            'failed' => $failedCount,
+        ]);
+    }
 
 
 
