@@ -25,6 +25,12 @@ class Product_View extends BaseController
             });
         }
 
+        // Filter by product name (search query)
+        if ($request->has('search') && !empty($request->input('search'))) {
+            $search = $request->input('search');
+            $query->where('product_name', 'LIKE', "%{$search}%");
+        }
+
         // Calculate the total value of assets before applying pagination
         $totalValue = $query->sum(DB::raw('original_price * quantity'));
 
@@ -53,6 +59,7 @@ class Product_View extends BaseController
             'totalValue' => number_format($totalValue, 2, '.', ''), // Include total value for all products
         ]);
     }
+
 
 
 

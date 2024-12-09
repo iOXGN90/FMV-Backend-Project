@@ -140,14 +140,21 @@ class PurchaseOrder_ViewDeliveries extends BaseController
     public function index_purchase_order(Request $request)
     {
         $statusFilter = $request->query('status', null); // Get the status query parameter if available
+        $searchTerm = $request->query('search', null); // Get the search query parameter if available
 
         // Get all purchase orders with related data
         $deliveries = PurchaseOrder::with(['address', 'productDetails.product'])
-                            ->where('sale_type_id', 1)
-                            ->when($statusFilter && $statusFilter !== 'All', function ($query) use ($statusFilter) {
-                                return $query->where('status', $statusFilter);
-                            })
-                            ->paginate(20); // Paginate the orders
+            ->where('sale_type_id', 1)
+            ->when($statusFilter && $statusFilter !== 'All', function ($query) use ($statusFilter) {
+                return $query->where('status', $statusFilter);
+            })
+            ->when($searchTerm, function ($query) use ($searchTerm) {
+                return $query->where(function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('id', 'LIKE', "%{$searchTerm}%")
+                             ->orWhere('customer_name', 'LIKE', "%{$searchTerm}%");
+                });
+            })
+            ->paginate(20); // Paginate the orders
 
         // Get the total count of purchase orders
         $totalDeliveries = PurchaseOrder::where('sale_type_id', 1)->count();
