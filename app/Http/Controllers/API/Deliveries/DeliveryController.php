@@ -46,80 +46,45 @@ class DeliveryController extends BaseController
 
             // Update notes
             $delivery->notes = $request->input('notes', 'no comment');
-            $delivery->status = 'OD'; // Set status to On Delivery by default
-
-            // Handle image uploads
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $file) {
-                    $imageName = time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
-                    $file->move(public_path('images'), $imageName);
-                    Image::create([
-                        'delivery_id' => $id,
-                        'url' => 'images/' . $imageName,
-                    ]);
-                }
-            }
 
             // Handle damages and returns status update
-            $damagesExist = false; // To track if there are any damages
-
+            $hasDamages = false;
             if ($request->has('damages')) {
                 foreach ($request->input('damages') as $damage) {
-                    if (isset($damage['product_id']) && isset($damage['no_of_damages'])) {
-                        // Get the DeliveryProduct record
-                        $deliveryProduct = DeliveryProduct::where('delivery_id', $delivery->id)
-                            ->where('product_id', $damage['product_id'])
-                            ->first();
+                    $deliveryProduct = DeliveryProduct::where('delivery_id', $delivery->id)
+                        ->where('product_id', $damage['product_id'])
+                        ->first();
 
-                        if ($deliveryProduct) {
-                            // Update no_of_damages directly in delivery_products table
-                            $deliveryProduct->update(['no_of_damages' => $damage['no_of_damages']]);
+                    if ($deliveryProduct) {
+                        $deliveryProduct->update(['no_of_damages' => $damage['no_of_damages']]);
 
-                            // Update or create a return record
-                            $return = Returns::firstOrCreate(
-                                ['delivery_product_id' => $deliveryProduct->id], // Corrected to use deliveryProduct ID
-                                ['reason' => $request->input('reason', 'Damage reported')]
-                            );
+                        // Update or create a return record
+                        $return = Returns::firstOrCreate(
+                            ['delivery_product_id' => $deliveryProduct->id],
+                            ['reason' => $request->input('reason', 'Damage reported')]
+                        );
 
-                            // Update status based on damage count
-                            if ($damage['no_of_damages'] > 0) {
-                                $return->status = 'P'; // Set status to Pending
-                                $damagesExist = true; // Mark that we have at least one damaged product
-                            } else {
-                                $return->status = 'NR'; // No Return if no damages
-                            }
-                            $return->save();
+                        if ($damage['no_of_damages'] > 0) {
+                            $return->status = 'P'; // Set to Pending if damages exist
+                            $hasDamages = true;
                         } else {
-                            Log::error("No matching delivery product found for delivery ID {$delivery->id} and product ID {$damage['product_id']}");
+                            $return->status = 'NR'; // No Return if no damages
                         }
-                    } else {
-                        Log::error("Missing or incomplete damage data", $damage);
+                        $return->save();
                     }
                 }
             }
 
-            // Set the delivery status and return status based on the damages
-            if ($damagesExist) {
-                $delivery->status = 'OD'; // On Delivery since there are damages
-            } else {
-                $delivery->status = 'P'; // Set delivery status to Pending
-                Returns::whereHas('deliveryProduct', function ($query) use ($delivery) {
-                    $query->where('delivery_id', $delivery->id);
-                })->update(['status' => 'NR']);
+            // Always update `delivered_at` regardless of damages
+            if (!$delivery->delivered_at) {
+                $delivery->delivered_at = now(); // Record the current timestamp
             }
 
-            // Check if all returns are completed (in case they were previously set to Pending)
-            $allReturnsCompleted = Returns::whereHas('deliveryProduct', function ($query) use ($delivery) {
-                $query->where('delivery_id', $delivery->id);
-            })
-                ->where('status', '!=', 'S')
-                ->doesntExist();
-
-            if ($allReturnsCompleted) {
-                $delivery->status = 'P'; // Set status to Pending if all returns are complete
-                Returns::whereHas('deliveryProduct', function ($query) use ($delivery) {
-                    $query->where('delivery_id', $delivery->id);
-                })->update(['status' => 'S']); // Set all returns to Success
+            // Set delivery status
+            if ($hasDamages) {
+                $delivery->status = 'OD'; // Keep the delivery as On Delivery if there are damages
+            } else {
+                $delivery->status = 'P'; // Set status to Pending if no damages
             }
 
             $delivery->save();
@@ -153,8 +118,9 @@ class DeliveryController extends BaseController
                     'delivery_no' => $delivery->delivery_no,
                     'notes' => $delivery->notes,
                     'status' => $delivery->status,
+                    'delivered_at' => $delivery->delivered_at, // Include delivered_at in the response
                     'products' => $products,
-                    'images' => $images, // Include images in the response
+                    'images' => $images,
                 ],
             ], 200);
         } catch (\Exception $e) {
@@ -162,6 +128,9 @@ class DeliveryController extends BaseController
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+
+
 
 
     public function final_update(Request $request, $delivery_id)

@@ -22,6 +22,13 @@ class Delivery_View_Report extends BaseController
                 return response()->json(['message' => 'Delivery not found'], 404);
             }
 
+            // Calculate `timeExceeded` based on `delivered_at`
+            $timeExceeded = false; // Default to false
+            if ($delivery->delivered_at) {
+                $deliveredAtPlusOneMinute = $delivery->delivered_at->copy()->addMinute(); // Add 1 minute to `delivered_at`
+                $timeExceeded = now()->greaterThanOrEqualTo($deliveredAtPlusOneMinute); // Check if current time exceeds the threshold
+            }
+
             $baseUrl = config('app.url');
             $images = $delivery->images->map(function ($image) use ($baseUrl) {
                 return [
@@ -31,22 +38,20 @@ class Delivery_View_Report extends BaseController
                 ];
             });
 
-            // Extract the price from the first product detail associated with the product
+            // Extract product details and calculate return information
             $products = $delivery->deliveryProducts->map(function ($deliveryProduct) {
-                // Get the first return related to the delivery product
-                $return = $deliveryProduct->returns->first(); // Assuming only one return per delivery product or you want to get the first one
-
-                $productDetail = $deliveryProduct->product->productDetails->first(); // Assuming you want the first product detail
+                $return = $deliveryProduct->returns->first(); // Get the first return if exists
+                $productDetail = $deliveryProduct->product->productDetails->first(); // Get the first product detail
 
                 return [
-                    'delivery_product_id' => $deliveryProduct->id, // Adding delivery_product ID
+                    'delivery_product_id' => $deliveryProduct->id, // Add delivery_product ID
                     'product_id' => $deliveryProduct->product_id,
-                    'return_status' => $return ? $return->status : 'NR', // If no return found, default to 'NR'
+                    'return_status' => $return ? $return->status : 'NR', // Default to 'NR' if no return found
                     'product_name' => $deliveryProduct->product->product_name,
                     'quantity_delivered' => $deliveryProduct->quantity,
                     'no_of_damages' => $deliveryProduct->no_of_damages,
                     'intact_quantity' => $deliveryProduct->quantity - $deliveryProduct->no_of_damages,
-                    'price' => $productDetail ? $productDetail->price : null, // Check if product detail exists
+                    'price' => $productDetail ? $productDetail->price : null, // Include price if exists
                 ];
             });
 
@@ -60,6 +65,8 @@ class Delivery_View_Report extends BaseController
                     'notes' => $delivery->notes,
                     'status' => $delivery->status,
                     'created_at' => $delivery->created_at->format('m/d/Y H:i'),
+                    'updated_at' => $delivery->updated_at->format('m/d/Y H:i'), // Include `updated_at` in response
+                    'delivered_at' => $delivery->delivered_at ? $delivery->delivered_at->format('m/d/Y H:i') : null, // Include `delivered_at` in response
                 ],
                 'user' => [
                     'id' => $user->id,
@@ -69,10 +76,12 @@ class Delivery_View_Report extends BaseController
                 ],
                 'images' => $images,
                 'products' => $products,
+                'time_exceeded' => $timeExceeded ? 'yes' : 'no', // Return 'yes' or 'no' as a string
             ], 200);
         } catch (\Exception $e) {
             Log::error('Error in ViewReport:', ['error' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
 }

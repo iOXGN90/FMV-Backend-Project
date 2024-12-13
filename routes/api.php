@@ -132,7 +132,9 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
         Route::get('deliveries/{deliveryId}/product-lists', [Deliveries_View::class, 'getDeliveryProducts']);
         Route::get('deliveries/overview', [Deliveries_View::class, 'deliveryCount']);
 
-        Route::put('deliveries/{deliveryId}/update', [Deliveries_View::class, 'updateDeliveryEmployee']);
+        // Update function for Web incase
+        Route::put('deliveries/{deliveryId}/update', [Deliveries_View::class, 'updateDeliveryDetails']);
+
         Route::put('deliveries/{deliveryId}/cancel', [Deliveries_Cancel::class, 'cancelDelivery']);
 
         Route::get('my-deliveries/pending', [Deliveries_View_Pending::class, 'pending_deliveries']);

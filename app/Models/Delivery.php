@@ -11,6 +11,10 @@ class Delivery extends Model
 
     protected $fillable = ['purchase_order_id', 'user_id', 'delivery_no', 'notes', 'status', 'created_at', 'updated_at'];
 
+    protected $casts = [
+        'delivered_at' => 'datetime', // Cast delivered_at to a Carbon instance
+    ];
+
     // Foreign Key Connections
     public function purchaseOrder()
     {

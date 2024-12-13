@@ -15,29 +15,29 @@ class Deliveries_View extends BaseController
     {
         $query = Delivery::query();
 
-        // Apply status filter only if it's not empty
         if ($request->has('status') && !empty($request->input('status'))) {
             $query->where('status', $request->input('status'));
         }
 
-        // Eager load purchase order details, delivery products, and returns
         $deliveries = $query->with(['purchaseOrder', 'deliveryProducts.returns'])->paginate(20);
 
-        // Format the deliveries using collect and map
         $formattedDeliveries = collect($deliveries->items())->map(function ($delivery) {
-            // Get the statuses of returns from all delivery products if available
             $returnStatuses = $delivery->deliveryProducts->flatMap(function ($deliveryProduct) {
                 return $deliveryProduct->returns->pluck('status');
             });
 
-            // Determine the overall return status based on the priority of statuses
             if ($returnStatuses->contains('P')) {
-                $returnStatus = 'P'; // If at least one Pending
+                $returnStatus = 'P';
             } elseif ($returnStatuses->contains('S') && $returnStatuses->every(fn($status) => $status === 'S')) {
-                $returnStatus = 'S'; // If all are Success
+                $returnStatus = 'S';
             } else {
-                $returnStatus = 'NR'; // Default to No Return
+                $returnStatus = 'NR';
             }
+
+            // Calculate time_exceeded based on delivered_at + 1 minute
+            $timeExceeded = $delivery->delivered_at
+                ? now()->greaterThanOrEqualTo(Carbon::parse($delivery->delivered_at)->addMinute())
+                : false;
 
             return [
                 'delivery_id' => $delivery->id,
@@ -45,15 +45,17 @@ class Deliveries_View extends BaseController
                 'notes' => $delivery->notes,
                 'status' => $delivery->status,
                 'return_status' => $returnStatus,
+                'delivered_at' => $delivery->delivered_at,
+                'time_exceeded' => $timeExceeded ? 'yes' : 'no', // Yes if time exceeded, no otherwise
                 'formatted_date' => Carbon::parse($delivery->created_at)
-                    ->timezone(config('app.timezone')) // Apply the timezone from config
+                    ->timezone(config('app.timezone'))
                     ->format('m/d/Y H:i'),
                 'purchase_order' => $delivery->purchaseOrder ? [
                     'purchase_order_id' => $delivery->purchaseOrder->id,
                     'customer_name' => $delivery->purchaseOrder->customer_name,
                     'status' => $delivery->purchaseOrder->status,
                     'date' => Carbon::parse($delivery->purchaseOrder->date)
-                        ->timezone(config('app.timezone')) // Apply the timezone from config
+                        ->timezone(config('app.timezone'))
                         ->format('m/d/Y H:i'),
                 ] : null,
                 'delivery_man' => $delivery->user ? [
@@ -65,8 +67,6 @@ class Deliveries_View extends BaseController
             ];
         });
 
-
-        // Return the formatted data with pagination metadata
         return response()->json([
             'deliveries' => $formattedDeliveries,
             'pagination' => [
@@ -77,6 +77,9 @@ class Deliveries_View extends BaseController
             ],
         ]);
     }
+
+
+
 
     public function getDeliveryProducts($deliveryId)
     {
@@ -113,15 +116,56 @@ class Deliveries_View extends BaseController
         ]);
     }
 
-    public function updateDeliveryEmployee(Request $request, $deliveryId)
+    // public function updateDeliveryEmployee(Request $request, $deliveryId)
+    // {
+    //     // Validate the request data
+    //     $validated = $request->validate([
+    //         'delivery_man_id' => 'required|exists:users,id', // Ensure the delivery man exists
+    //     ]);
+
+    //     // Find the delivery
+    //     $delivery = Delivery::find($deliveryId);
+
+    //     // Check if the delivery exists
+    //     if (!$delivery) {
+    //         return response()->json([
+    //             'error' => true,
+    //             'message' => 'Delivery not found.',
+    //         ], 404);
+    //     }
+
+    //     // Update the delivery man
+    //     $delivery->user_id = $validated['delivery_man_id'];
+    //     $delivery->save();
+
+    //     // Return a success response
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Delivery man updated successfully.',
+    //         'delivery' => [
+    //             'delivery_id' => $delivery->id,
+    //             'delivery_no' => $delivery->delivery_no,
+    //             'delivery_man' => [
+    //                 'user_id' => $delivery->user->id,
+    //                 'name' => $delivery->user->name,
+    //                 'number' => $delivery->user->number,
+    //             ],
+    //         ],
+    //     ]);
+    // }
+
+    public function updateDeliveryDetails(Request $request, $deliveryId)
     {
         // Validate the request data
         $validated = $request->validate([
-            'delivery_man_id' => 'required|exists:users,id', // Ensure the delivery man exists
+            'delivery_man_id' => 'nullable|exists:users,id',
+            'damages' => 'required|array',
+            'damages.*.product_id' => 'required|exists:delivery_products,product_id',
+            'damages.*.no_of_damages' => 'required|integer|min:0',
         ]);
 
         // Find the delivery
-        $delivery = Delivery::find($deliveryId);
+        $delivery = Delivery::with('deliveryProducts.returns')->find($deliveryId);
 
         // Check if the delivery exists
         if (!$delivery) {
@@ -131,25 +175,65 @@ class Deliveries_View extends BaseController
             ], 404);
         }
 
-        // Update the delivery man
-        $delivery->user_id = $validated['delivery_man_id'];
+        // Restrict updates if status is OD
+        if ($delivery->status === 'OD') {
+            return response()->json([
+                'error' => true,
+                'message' => 'Delivery cannot be edited while it is on delivery.',
+            ], 403);
+        }
+
+        // Update delivery_products and returns
+        foreach ($validated['damages'] as $damage) {
+            $deliveryProduct = $delivery->deliveryProducts
+                ->where('product_id', $damage['product_id'])
+                ->first();
+
+            if ($deliveryProduct) {
+                $deliveryProduct->no_of_damages = $damage['no_of_damages'];
+                $deliveryProduct->save();
+
+                $return = $deliveryProduct->returns->first();
+                if ($return) {
+                    $return->status = 'P';
+                    $return->save();
+                }
+            }
+        }
+
+        // Update delivery status to 'P'
+        $delivery->status = 'P';
+
+        // Optionally update the delivery man
+        if (!empty($validated['delivery_man_id'])) {
+            $delivery->user_id = $validated['delivery_man_id'];
+        }
+
         $delivery->save();
 
-        // Return a success response
         return response()->json([
             'success' => true,
-            'message' => 'Delivery man updated successfully.',
+            'message' => 'Delivery details updated successfully.',
             'delivery' => [
                 'delivery_id' => $delivery->id,
                 'delivery_no' => $delivery->delivery_no,
-                'delivery_man' => [
+                'delivery_status' => $delivery->status,
+                'delivery_man' => $delivery->user ? [
                     'user_id' => $delivery->user->id,
                     'name' => $delivery->user->name,
                     'number' => $delivery->user->number,
-                ],
+                ] : null,
+                'updated_products' => $delivery->deliveryProducts->map(function ($product) {
+                    return [
+                        'product_id' => $product->product_id,
+                        'no_of_damages' => $product->no_of_damages,
+                    ];
+                }),
             ],
         ]);
     }
+
+
 
     public function deliveryCount()
     {

@@ -14,7 +14,7 @@ class PurchaseOrder_GetRemainingBalanceOfProductToDeliver
             ->join('products as p', 'p.id', '=', 'pd.product_id')
             ->leftJoin('deliveries as d', function ($join) {
                 $join->on('po.id', '=', 'd.purchase_order_id')
-                     ->whereIn('d.status', ['OD', 'S']); // Include 'OD' and 'S' deliveries
+                     ->whereIn('d.status', ['OD', 'P', 'S']); // Include 'OD' and 'S' deliveries
             })
             ->leftJoin('delivery_products as dp', function ($join) {
                 $join->on('d.id', '=', 'dp.delivery_id')
