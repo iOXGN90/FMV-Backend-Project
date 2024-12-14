@@ -144,4 +144,126 @@ class ProductRestockController extends BaseController
             return response()->json(['error' => 'Error occurred while deleting the restock order'], 500);
         }
     }
+
+
+    public function productTransactions($product_id, Request $request)
+    {
+        // Validate product ID
+        $product = Product::find($product_id);
+        if (!$product) {
+            return response()->json(['error' => 'Product not found'], 404);
+        }
+
+        // Fetch time period filter
+        $timePeriod = $request->input('timePeriod', 'all'); // Default to 'all'
+        $dateLimit = null;
+
+        switch ($timePeriod) {
+            case '30_days':
+                $dateLimit = now()->subDays(30);
+                break;
+            case '60_days':
+                $dateLimit = now()->subDays(60);
+                break;
+            case '90_days':
+                $dateLimit = now()->subDays(90);
+                break;
+            case 'all':
+            default:
+                $dateLimit = null; // No date limit for 'all'
+                break;
+        }
+
+        // Fetch Restock Transactions (IN Transactions)
+        $restocks = DB::table('product_restock_orders')
+            ->join('products', 'product_restock_orders.product_id', '=', 'products.id')
+            ->select(
+                'product_restock_orders.quantity',
+                DB::raw('FORMAT(product_restock_orders.quantity * products.original_price, 2) as total_value'),
+                'product_restock_orders.created_at as date',
+                DB::raw('"IN" as transaction_type')
+            )
+            ->where('product_restock_orders.product_id', $product_id);
+
+        if ($dateLimit) {
+            $restocks->where('product_restock_orders.created_at', '>=', $dateLimit);
+        }
+
+        // Paginate Restock Transactions
+        $perPage = $request->input('perPage', 20); // Default to 20 per page
+        $currentPage = $request->input('page', 1);
+
+        $restockResults = $restocks
+            ->offset(($currentPage - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        $totalRestocks = $restocks->count();
+
+        // Fetch Delivery Transactions (OUT Transactions)
+        $deliveries = DB::table('delivery_products')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->join('products', 'delivery_products.product_id', '=', 'products.id')
+            ->join('product_details', 'delivery_products.product_id', '=', 'product_details.product_id')
+            ->select(
+                'delivery_products.delivery_id',
+                'delivery_products.quantity', // Fetch exact quantity per delivery
+                DB::raw('FORMAT(delivery_products.quantity * product_details.price, 2) as total_value'), // Format total value to 2 decimal places
+                'deliveries.created_at as date',
+                'deliveries.status as delivery_status',
+                'delivery_products.no_of_damages' // Fetch exact damages per row
+            )
+            ->where('delivery_products.product_id', $product_id)
+            ->whereIn('deliveries.status', ['OD', 'P', 'S'])
+            ->groupBy(
+                'delivery_products.id', // Ensure unique rows
+                'delivery_products.delivery_id',
+                'delivery_products.quantity',
+                'delivery_products.no_of_damages',
+                'deliveries.created_at',
+                'deliveries.status',
+                'product_details.price'
+            );
+
+        if ($dateLimit) {
+            $deliveries->where('deliveries.created_at', '>=', $dateLimit);
+        }
+
+        // Paginate Delivery Transactions
+        $deliveryResults = $deliveries
+            ->offset(($currentPage - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        $totalDeliveries = $deliveries->count();
+
+        // Combine Paginated Results
+        return response()->json([
+            'product_name' => $product->product_name,
+            'product_created_date' => $product->created_at->format('m/d/Y'),
+            'remaining_quantity' => $product->quantity,
+            'data' => [
+                'restocks' => [
+                    'transactions' => $restockResults,
+                    'pagination' => [
+                        'total' => $totalRestocks,
+                        'perPage' => $perPage,
+                        'currentPage' => $currentPage,
+                        'lastPage' => ceil($totalRestocks / $perPage),
+                    ],
+                ],
+                'deliveries' => [
+                    'transactions' => $deliveryResults,
+                    'pagination' => [
+                        'total' => $totalDeliveries,
+                        'perPage' => $perPage,
+                        'currentPage' => $currentPage,
+                        'lastPage' => ceil($totalDeliveries / $perPage),
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+
 }

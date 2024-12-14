@@ -67,16 +67,6 @@ class Product_View extends BaseController
         ]);
     }
 
-
-
-
-
-
-
-
-
-
-
     public function index_overview(Request $request)
     {
         // Validate or set default values
@@ -94,4 +84,6 @@ class Product_View extends BaseController
             'data' => $products
         ]);
     }
+
+
 }
