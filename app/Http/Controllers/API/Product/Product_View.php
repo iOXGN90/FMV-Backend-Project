@@ -15,11 +15,14 @@ class Product_View extends BaseController
 
     public function index(Request $request)
     {
-        $query = Product::with('category');
+        $query = Product::with(['category', 'deliveryProduct.delivery']); // Load necessary relationships
 
         // Filter by multiple categories
         if ($request->has('categories') && !empty($request->input('categories'))) {
             $categories = $request->input('categories');
+            if (is_string($categories)) {
+                $categories = explode(',', $categories); // Convert string to array
+            }
             $query->whereHas('category', function ($query) use ($categories) {
                 $query->whereIn('category_name', $categories);
             });
@@ -32,26 +35,45 @@ class Product_View extends BaseController
         }
 
         // Add sorting with validation to prevent invalid columns
-        $validSortColumns = ['id', 'quantity', 'original_price', 'product_name'];  // Fix: Changed 'product_id' to 'id'
-        $sortBy = in_array($request->input('sort_by'), $validSortColumns) ? $request->input('sort_by') : 'id';  // Fix: Default to 'id'
+        $validSortColumns = ['id', 'quantity', 'original_price', 'product_name'];
+        $sortBy = in_array($request->input('sort_by'), $validSortColumns) ? $request->input('sort_by') : 'id';
         $sortOrder = in_array($request->input('sort_order'), ['asc', 'desc']) ? $request->input('sort_order') : 'asc';
 
         $query->orderBy($sortBy, $sortOrder);
 
         // Calculate total value of assets
-        $totalValue = $query->sum(DB::raw('original_price * quantity'));
+        $totalValue = $query->sum(DB::raw('COALESCE(original_price, 0) * COALESCE(quantity, 0)'));
 
-        // Add pagination
+        // Fetch products
         $products = $query->paginate(30);
 
         // Format the response
         $formattedProducts = collect($products->items())->map(function ($product) {
+            // Calculate successful deliveries
+            $successfulDeliveries = $product->deliveryProduct
+                ->filter(function ($deliveryProduct) {
+                    return optional($deliveryProduct->delivery)->status === 'S'; // Check delivery status
+                })
+                ->sum('quantity'); // Sum quantities for successful deliveries
+
+            // Calculate reorder level
+            $averageDailyUsage = $successfulDeliveries / 30 ?: 10; // Default average usage
+            $leadTime = 5; // Assume lead time in days
+            $safetyStock = 20; // Assume safety stock
+            $reorderLevel = ($averageDailyUsage * $leadTime) + $safetyStock;
+
+            // Determine if the product is below reorder level
+            $needsReorder = $product->quantity < $reorderLevel;
+
             return [
-                'product_id' => $product->id,  // 'id' is the correct column
+                'product_id' => $product->id,
                 'category_name' => $product->category->category_name ?? 'Uncategorized',
                 'product_name' => $product->product_name,
-                'original_price' => number_format($product->original_price, 2, '.', ''),
-                'quantity' => $product->quantity,
+                'original_price' => number_format($product->original_price, 2, '.', ''), // Format price
+                'quantity' => $product->quantity, // Integer quantity
+                'successful_deliveries' => number_format($successfulDeliveries, 2, '.', ''), // Format successful deliveries
+                'reorder_level' => number_format($reorderLevel, 2, '.', ''), // Format reorder level
+                'needs_reorder' => $needsReorder, // Boolean, no formatting needed
             ];
         });
 
@@ -63,9 +85,13 @@ class Product_View extends BaseController
                 'currentPage' => $products->currentPage(),
                 'lastPage' => $products->lastPage(),
             ],
-            'totalValue' => number_format($totalValue, 2, '.', ''),
+            'totalValue' => number_format($totalValue, 2, '.', ''), // Format total value
         ]);
     }
+
+
+
+
 
     public function index_overview(Request $request)
     {

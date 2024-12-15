@@ -242,6 +242,7 @@ class ProductRestockController extends BaseController
             'product_name' => $product->product_name,
             'product_created_date' => $product->created_at->format('m/d/Y'),
             'remaining_quantity' => $product->quantity,
+            'product_id' => $product->id,
             'data' => [
                 'restocks' => [
                     'transactions' => $restockResults,
