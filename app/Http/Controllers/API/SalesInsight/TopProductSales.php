@@ -72,11 +72,11 @@ class TopProductSales extends BaseController
                     'products.id as product_id',
                     'products.product_name',
                     'products.original_price as price',
-                    DB::raw('SUM(delivery_products.quantity) as total_sold')
+                    DB::raw('SUM(delivery_products.quantity) as total_sold') // Only include successful records
                 )
                 ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
                 ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
-                ->where('deliveries.status', 'S') // Only include successfully delivered products
+                ->where('deliveries.status', 'S') // Only successful deliveries
                 ->whereMonth('deliveries.created_at', $month) // Filter by month
                 ->whereYear('deliveries.created_at', $year)   // Filter by year
                 ->groupBy('products.id', 'products.product_name', 'products.original_price')
@@ -96,6 +96,7 @@ class TopProductSales extends BaseController
             ], 200);
         }
 
+
         public function topDamagedProducts(Request $request)
         {
             // Inputs from the request
@@ -108,15 +109,15 @@ class TopProductSales extends BaseController
                     'products.id as product_id',
                     'products.product_name',
                     'products.original_price as price',
-                    DB::raw('SUM(delivery_products.no_of_damages) as total_damages')
+                    DB::raw('SUM(delivery_products.no_of_damages) as total_damages') // Only sum valid damages
                 )
                 ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
                 ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
-                ->where('deliveries.status', 'S') // Only include successfully delivered products
+                ->where('deliveries.status', 'S') // Only include successful deliveries
                 ->whereMonth('deliveries.created_at', $month) // Filter by month
                 ->whereYear('deliveries.created_at', $year)   // Filter by year
                 ->groupBy('products.id', 'products.product_name', 'products.original_price')
-                ->orderByDesc('total_damages') // Sort by total_damages in descending order
+                ->orderByDesc('total_damages') // Sort by total damages in descending order
                 ->paginate($perPage);
 
             // Return response with paginated data and pagination metadata
@@ -130,6 +131,8 @@ class TopProductSales extends BaseController
                 ],
             ], 200);
         }
+
+
 
 
     // Month's Data
