@@ -82,20 +82,18 @@ class CategoryController extends BaseController
                 'string',
                 'max:255',
                 function ($attribute, $value, $fail) use ($id) {
-                    // Check if a category with the same name exists
+                    // Check for existing category
                     $existingCategory = Category::withTrashed()
                         ->where('category_name', $value)
                         ->where('id', '!=', $id)
                         ->first();
 
-                    if ($existingCategory) {
-                        // If the category is not soft deleted, fail the validation
-                        if (is_null($existingCategory->deleted_at)) {
-                            $fail('The category name is already taken.');
-                        }
+                    if ($existingCategory && is_null($existingCategory->deleted_at)) {
+                        $fail('The category name is already taken.');
                     }
                 },
             ],
+            'safety_stock' => 'nullable|integer|min:0', // Add validation for safety stock
         ]);
 
         // Handle validation errors
@@ -106,14 +104,13 @@ class CategoryController extends BaseController
         // Find the category
         $category = Category::find($id);
 
-        // Handle category not found
         if (is_null($category)) {
             return response()->json(['error' => 'Category not found.'], 404);
         }
 
         try {
-            // Update the category
-            $category->update($request->only('category_name'));
+            // Update the category and safety stock
+            $category->update($request->only('category_name', 'safety_stock'));
 
             // Return success response
             return response()->json([
@@ -121,10 +118,10 @@ class CategoryController extends BaseController
                 'data' => $category
             ], 200);
         } catch (\Exception $e) {
-            // Handle unexpected errors
             return response()->json(['error' => 'An error occurred while updating the category.'], 500);
         }
     }
+
 
 
 

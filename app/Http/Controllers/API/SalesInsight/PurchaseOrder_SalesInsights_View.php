@@ -225,19 +225,4 @@ class PurchaseOrder_SalesInsights_View extends BaseController
     }
 
 
-
-    // public function recordPerMonths(Request $request)
-    // {
-    //     // Fetch all purchase orders with related product details and deliveries
-    //     $purchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])->get();
-
-    //     // Optionally, you can log the number of fetched orders for debugging
-    //     Log::info("Fetched " . $purchaseOrders->count() . " purchase orders.");
-
-    //     return response()->json($purchaseOrders, 200);
-    // }
-
-
-
-
 }

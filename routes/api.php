@@ -33,8 +33,8 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_AdminConfirms;
 use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_Edit;
 use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfProductToDeliver;
 
-    use App\Http\Controllers\API\SalesInsight\PurchaseOrder_SalesInsights_View;
-use App\Models\Product;
+use App\Http\Controllers\API\SalesInsight\PurchaseOrder_SalesInsights_View;
+use App\Http\Controllers\API\SalesInsight\TopProductSales;
 
 // End Import
 
@@ -174,6 +174,7 @@ use App\Models\Product;
 // End Product
 
     Route::get('view/{product_id}/per-product-restock/', [ProductRestockController::class, 'productTransactions']);
+    Route::get('view/reorder-level', [ProductRestockController::class, 'reorderLevel']);
 
 // Start Product ReStocks
     Route::post('products-restock', [ProductRestockController::class, 'create']);
@@ -187,8 +188,9 @@ use App\Models\Product;
 // Sales and Insights
 
     Route::get('Insights/Monthly-Data', [PurchaseOrder_SalesInsights_View::class, 'monthlyData']);
-    Route::get('/Insights/Monthly-Records', [PurchaseOrder_SalesInsights_View::class, 'recordPerMonths']);
-
+    Route::get('Insights/Monthly-Records', [PurchaseOrder_SalesInsights_View::class, 'recordPerMonths']);
+    Route::get('Insights/TopSold-Items', [TopProductSales::class, 'topThreeProducts']);
+    Route::get('Insights/TopSold-All-Items', [TopProductSales::class, 'topProducts']);
 // EDIT and Cancel
 
     Route::get('PurchaseOrder/View/{purchase_order_id}', [PurchaseOrder_Edit::class, 'getPurchaseOrderDetails']);

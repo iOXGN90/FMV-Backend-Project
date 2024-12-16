@@ -13,57 +13,104 @@ class Deliveries_View extends BaseController
 
     public function index(Request $request)
     {
-        $query = Delivery::query();
+        // Default sorting parameters
+        $sortColumn = $request->input('sort_column', 'created_at');
+        $sortDirection = $request->input('sort_direction', 'asc');
 
-        if ($request->has('status') && !empty($request->input('status'))) {
-            $query->where('status', $request->input('status'));
+        // Validate allowed sort columns
+        $validColumns = ['id', 'purchase_order_id', 'status', 'created_at', 'delivery_man'];
+        if (!in_array($sortColumn, $validColumns)) {
+            return response()->json(['error' => 'Invalid sort column'], 400);
         }
 
-        $deliveries = $query->with(['purchaseOrder', 'deliveryProducts.returns'])->paginate(20);
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            return response()->json(['error' => 'Invalid sort direction'], 400);
+        }
 
+        // Base Query
+        $query = Delivery::query()
+            ->with(['purchaseOrder', 'user', 'deliveryProducts.returns'])
+            ->join('users', 'users.id', '=', 'deliveries.user_id')
+            ->join('purchase_orders', 'purchase_orders.id', '=', 'deliveries.purchase_order_id')
+            ->select(
+                'deliveries.*',
+                'purchase_orders.id as purchase_order_id',
+                'users.name as delivery_man'
+            );
+
+        // Apply sorting logic
+        if ($sortColumn === 'purchase_order_id') {
+            $query->orderBy('purchase_orders.id', $sortDirection);
+        } elseif ($sortColumn === 'delivery_man') {
+            $query->orderBy('users.name', $sortDirection);
+        } elseif ($sortColumn === 'status') {
+            // Custom sorting for delivery status
+            $query->orderByRaw("
+                CASE deliveries.status
+                    WHEN 'F' THEN 1    -- Failed (Highest Priority)
+                    WHEN 'OD' THEN 2   -- On-Delivery
+                    WHEN 'P' THEN 3    -- Pending
+                    WHEN 'S' THEN 4    -- Delivered (Lowest Priority)
+                    ELSE 5
+                END {$sortDirection}, deliveries.created_at {$sortDirection}
+            ");
+        } else {
+            $query->orderBy($sortColumn === 'id' ? 'deliveries.id' : "deliveries.$sortColumn", $sortDirection);
+        }
+
+        // Filter by return_status
+        if ($request->filled('return_status') && in_array($request->input('return_status'), ['NR', 'P', 'S'])) {
+            $query->whereHas('deliveryProducts', function ($q) use ($request) {
+                if ($request->input('return_status') === 'NR') {
+                    // Handle "NR" (No Returns) case
+                    $q->doesntHave('returns');
+                } else {
+                    // Handle "P" and "S" cases
+                    $q->whereHas('returns', function ($r) use ($request) {
+                        $r->where('status', $request->input('return_status'));
+                    });
+                }
+            });
+        }
+
+        // Filter by delivery status
+        if ($request->filled('status') && in_array($request->input('status'), ['F', 'P', 'OD', 'S'])) {
+            $query->where('deliveries.status', $request->input('status'));
+        }
+
+        $deliveries = $query->paginate(20);
+
+        // Format response
         $formattedDeliveries = collect($deliveries->items())->map(function ($delivery) {
             $returnStatuses = $delivery->deliveryProducts->flatMap(function ($deliveryProduct) {
                 return $deliveryProduct->returns->pluck('status');
             });
 
-            if ($returnStatuses->contains('P')) {
-                $returnStatus = 'P';
-            } elseif ($returnStatuses->contains('S') && $returnStatuses->every(fn($status) => $status === 'S')) {
-                $returnStatus = 'S';
-            } else {
-                $returnStatus = 'NR';
-            }
+            $returnStatus = $returnStatuses->contains('P')
+                ? 'P'
+                : ($returnStatuses->contains('S') && $returnStatuses->every(fn($status) => $status === 'S')
+                    ? 'S'
+                    : 'NR');
 
-            // Calculate time_exceeded based on delivered_at + 1 minute
+            // Calculate time exceeded
             $timeExceeded = $delivery->delivered_at
-                ? now()->greaterThanOrEqualTo(Carbon::parse($delivery->delivered_at)->addMinute())
+                ? now()->greaterThanOrEqualTo(Carbon::parse($delivery->delivered_at)->addMinutes(2))
                 : false;
 
             return [
                 'delivery_id' => $delivery->id,
                 'delivery_no' => $delivery->delivery_no,
-                'notes' => $delivery->notes,
                 'status' => $delivery->status,
                 'return_status' => $returnStatus,
-                'delivered_at' => $delivery->delivered_at,
-                'time_exceeded' => $timeExceeded ? 'yes' : 'no', // Yes if time exceeded, no otherwise
-                'formatted_date' => Carbon::parse($delivery->created_at)
-                    ->timezone(config('app.timezone'))
-                    ->format('m/d/Y H:i'),
-                'purchase_order' => $delivery->purchaseOrder ? [
-                    'purchase_order_id' => $delivery->purchaseOrder->id,
-                    'customer_name' => $delivery->purchaseOrder->customer_name,
-                    'status' => $delivery->purchaseOrder->status,
-                    'date' => Carbon::parse($delivery->purchaseOrder->date)
-                        ->timezone(config('app.timezone'))
-                        ->format('m/d/Y H:i'),
-                ] : null,
-                'delivery_man' => $delivery->user ? [
-                    'user_id' => $delivery->user->id,
-                    'name' => $delivery->user->name,
-                    'number' => $delivery->user->number,
-                    'username' => $delivery->user->username,
-                ] : null,
+                'formatted_date' => Carbon::parse($delivery->created_at)->format('m/d/Y H:i'),
+                'time_exceeded' => $timeExceeded ? 'yes' : 'no',
+                'purchase_order' => [
+                    'purchase_order_id' => $delivery->purchase_order_id,
+                    'customer_name' => $delivery->purchaseOrder->customer_name ?? null,
+                ],
+                'delivery_man' => [
+                    'name' => $delivery->delivery_man,
+                ],
             ];
         });
 
@@ -77,8 +124,6 @@ class Deliveries_View extends BaseController
             ],
         ]);
     }
-
-
 
 
     public function getDeliveryProducts($deliveryId)
@@ -257,8 +302,5 @@ class Deliveries_View extends BaseController
             'failed' => $failedCount,
         ]);
     }
-
-
-
 
 }

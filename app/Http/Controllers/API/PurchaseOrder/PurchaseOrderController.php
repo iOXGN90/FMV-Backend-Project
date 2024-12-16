@@ -53,13 +53,14 @@ class PurchaseOrderController extends BaseController
             return response()->json(['error' => 'Invalid sale type. Deliveries can only be created for sale type 1 (delivery).'], 403);
         }
 
-        // Validate product quantities
+        // Validate product quantities - ensure the quantity does not exceed available stock
         foreach ($request->input('product_details') as $productDetail) {
             $product = Product::find($productDetail['product_id']);
             if (!$product) {
                 return response()->json(['error' => "Product with ID {$productDetail['product_id']} not found."], 404);
             }
 
+            // Check if requested quantity exceeds available stock
             if ($productDetail['quantity'] > $product->quantity) {
                 return response()->json([
                     'error' => "Insufficient stock for product '{$product->product_name}' (ID: {$product->id}).
@@ -78,55 +79,25 @@ class PurchaseOrderController extends BaseController
             $purchaseOrderData['address_id'] = $address->id;
             $purchaseOrder = PurchaseOrder::create($purchaseOrderData);
 
-            // Create the product details and reduce stock quantity
+            // Create product details (no stock deduction here)
             foreach ($request->input('product_details') as $productDetailData) {
                 $productDetailData['purchase_order_id'] = $purchaseOrder->id;
                 ProductDetail::create($productDetailData);
-
-                // Update product quantity
-                $product = Product::find($productDetailData['product_id']);
-                $product->quantity -= $productDetailData['quantity'];
-                $product->save();
             }
 
             DB::commit();
 
-            // Format the response to match `index_purchase_order`
-            $formattedOrder = [
+            return response()->json([
+                'message' => 'Purchase order created successfully!',
                 'purchase_order_id' => $purchaseOrder->id,
-                'user_id' => $purchaseOrder->user_id,
-                'address_id' => $purchaseOrder->address_id,
-                'sale_type_id' => $purchaseOrder->sale_type_id,
-                'customer_name' => $purchaseOrder->customer_name,
-                'status' => $purchaseOrder->status,
-                'created_at' => Carbon::parse($purchaseOrder->created_at)->format('l, M d, Y'),
-                'address' => [
-                    'id' => $purchaseOrder->address->id,
-                    'street' => $purchaseOrder->address->street,
-                    'barangay' => $purchaseOrder->address->barangay,
-                    'zip_code' => $purchaseOrder->address->zip_code,
-                    'province' => $purchaseOrder->address->province,
-                    'created_at' => Carbon::parse($purchaseOrder->address->created_at)->format('l, M d, Y'),
-                ],
-                'product_details' => $purchaseOrder->productDetails->map(function ($detail) {
-                    return [
-                        'id' => $detail->id,
-                        'product_id' => $detail->product_id,
-                        'product_name' => $detail->product->product_name ?? 'N/A',
-                        'purchase_order_id' => $detail->purchase_order_id,
-                        'price' => $detail->price,
-                        'quantity' => $detail->quantity,
-                    ];
-                }),
-            ];
-
-            return response()->json($formattedOrder, 201);
+            ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Error occurred while creating the purchase order: ' . $e->getMessage()], 500);
         }
     }
+
 
 
 
