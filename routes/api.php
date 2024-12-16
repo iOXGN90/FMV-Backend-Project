@@ -189,8 +189,15 @@ use App\Http\Controllers\API\SalesInsight\TopProductSales;
 
     Route::get('Insights/Monthly-Data', [PurchaseOrder_SalesInsights_View::class, 'monthlyData']);
     Route::get('Insights/Monthly-Records', [PurchaseOrder_SalesInsights_View::class, 'recordPerMonths']);
-    Route::get('Insights/TopSold-Items', [TopProductSales::class, 'topThreeProducts']);
-    Route::get('Insights/TopSold-All-Items', [TopProductSales::class, 'topProducts']);
+    Route::get('Insights/TopSold-Items', [TopProductSales::class, 'topFiveProducts']);
+    // Route::get('Insights/TopSold-All-Items', [TopProductSales::class, 'topProducts']);
+
+    Route::get('Insights/View/Month-Data', [PurchaseOrder_SalesInsights_View::class, 'MonthData']);
+    Route::get('Insights/View/Month-Data/Chart', [PurchaseOrder_SalesInsights_View::class, 'MonthChartData']);
+    Route::get('Insights/View/Month-Data/Top-3-Products', [TopProductSales::class, 'topThreeProducts']);
+    Route::get('Insights/View/Month-Data/Top-Sold-Products', [TopProductSales::class, 'topSoldProducts']);
+    Route::get('Insights/View/Month-Data/Top-Damaged-Products', [TopProductSales::class, 'topDamagedProducts']);
+
 // EDIT and Cancel
 
     Route::get('PurchaseOrder/View/{purchase_order_id}', [PurchaseOrder_Edit::class, 'getPurchaseOrderDetails']);

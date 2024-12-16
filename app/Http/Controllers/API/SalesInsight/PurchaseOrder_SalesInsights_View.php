@@ -5,149 +5,105 @@ namespace App\Http\Controllers\API\SalesInsight;
 use App\Http\Controllers\API\BaseController;
 use Illuminate\Http\Request;
 use App\Models\PurchaseOrder;
+use App\Models\DeliveryProduct;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PurchaseOrder_SalesInsights_View extends BaseController
 {
-    public function monthlyData(Request $request)
+    // Month Data
+    public function MonthData(Request $request)
     {
-        $month = $request->input('month', Carbon::now()->month);
-        $year = $request->input('year', Carbon::now()->year);
+        // Get the month and year from the request, or default to the current month
+        $month = $request->input('month', now()->format('m'));
+        $year = $request->input('year', now()->format('Y'));
 
-        Log::info("Fetching data for Month: $month, Year: $year");
+        // Query for total successful delivered products
+        $totalSuccessDeliveredProduct = DB::table('delivery_products')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->where('deliveries.status', 'S')
+            ->whereMonth('deliveries.created_at', $month)
+            ->whereYear('deliveries.created_at', $year)
+            ->sum('delivery_products.quantity');
 
-        $purchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
-            ->whereYear('created_at', $year)
+        // Query for total sales
+        $monthTotalSales = DB::table('delivery_products')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->join('products', 'delivery_products.product_id', '=', 'products.id')
+            ->join('product_details', 'products.id', '=', 'product_details.product_id')
+            ->where('deliveries.status', 'S')
+            ->whereMonth('deliveries.created_at', $month)
+            ->whereYear('deliveries.created_at', $year)
+            ->sum(DB::raw('delivery_products.quantity * product_details.price'));
+
+        // Query for total damage cost
+        $monthTotalDamageCost = DB::table('delivery_products')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->join('products', 'delivery_products.product_id', '=', 'products.id')
+            ->join('product_details', 'products.id', '=', 'product_details.product_id')
+            ->where('deliveries.status', 'S')
+            ->whereMonth('deliveries.created_at', $month)
+            ->whereYear('deliveries.created_at', $year)
+            ->sum(DB::raw('delivery_products.no_of_damages * product_details.price'));
+
+        // Query for total successful deliveries count
+        $successfulDeliveriesCount = DB::table('deliveries')
+            ->where('status', 'S')
             ->whereMonth('created_at', $month)
-            ->where('status', 'S') // Only successful purchase orders
-            ->get();
+            ->whereYear('created_at', $year)
+            ->count();
 
-        $responseData = [];
-        $totalRevenueCurrentMonth = 0;
-        $totalDamagesCurrentMonth = 0;
+        // Format monthTotalSales and monthTotalDamageCost to 2 decimal places
+        $formattedMonthTotalSales = number_format($monthTotalSales, 2, '.', ',');
+        $formattedMonthTotalDamageCost = number_format($monthTotalDamageCost, 2, '.', ',');
 
-        foreach ($purchaseOrders as $order) {
-            $totalRevenue = 0;
-            $totalDamagesValue = 0;
-
-            // Calculate total revenue and damages for the order
-            foreach ($order->productDetails as $productDetail) {
-                $totalRevenue += $productDetail->price * $productDetail->quantity;
-            }
-
-            foreach ($order->deliveries as $delivery) {
-                foreach ($delivery->deliveryProducts as $deliveryProduct) {
-                    // Match the product in deliveryProducts with productDetails to get the price
-                    $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
-
-                    if ($productDetail) {
-                        $totalDamagesValue += $deliveryProduct->no_of_damages * $productDetail->price;
-                    }
-                }
-            }
-
-            $totalRevenueCurrentMonth += $totalRevenue;
-            $totalDamagesCurrentMonth += $totalDamagesValue;
-
-            $responseData['Per_PurchaseOrderTotal'][] = [
-                'purchase_order_id' => $order->id,
-                'customer_name' => $order->customer_name,
-                'total_revenue' => number_format($totalRevenue, 2),
-                'date' => Carbon::parse($order->created_at)->format('M-d-Y'),
-                'total_damages' => number_format($totalDamagesValue, 2),
-            ];
-        }
-
-        $responseData['CurrentPurchaseOrderRevenue'] = number_format($totalRevenueCurrentMonth, 2);
-        $responseData['CurrentMonthDamages'] = number_format($totalDamagesCurrentMonth, 2);
-
-        // Process previous month's data
-        $previousMonth = $month - 1;
-        $previousYear = $year;
-        if ($previousMonth == 0) {
-            $previousMonth = 12;
-            $previousYear--;
-        }
-
-        $previousPurchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
-            ->whereYear('created_at', $previousYear)
-            ->whereMonth('created_at', $previousMonth)
-            ->where('status', 'S') // Only successful purchase orders
-            ->get();
-
-        $totalRevenuePreviousMonth = 0;
-        $totalDamagesPreviousMonth = 0;
-
-        foreach ($previousPurchaseOrders as $order) {
-            $totalRevenue = 0;
-            $totalDamagesValue = 0;
-
-            foreach ($order->productDetails as $productDetail) {
-                $totalRevenue += $productDetail->price * $productDetail->quantity;
-            }
-
-            foreach ($order->deliveries as $delivery) {
-                foreach ($delivery->deliveryProducts as $deliveryProduct) {
-                    $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
-
-                    if ($productDetail) {
-                        $totalDamagesValue += $deliveryProduct->no_of_damages * $productDetail->price;
-                    }
-                }
-            }
-
-            $totalRevenuePreviousMonth += $totalRevenue;
-            $totalDamagesPreviousMonth += $totalDamagesValue;
-        }
-
-        $responseData['PreviousMonthRevenue'] = number_format($totalRevenuePreviousMonth, 2);
-        $responseData['PreviousMonthDamages'] = number_format($totalDamagesPreviousMonth, 2);
-
-        // Calculate total historical revenue and damages
-        $totalHistoricalRevenue = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
-            ->where('status', 'S') // Only successful purchase orders
-            ->get()
-            ->reduce(function ($carry, $order) {
-                $totalRevenue = $order->productDetails->sum(function ($productDetail) {
-                    return $productDetail->price * $productDetail->quantity;
-                });
-                return $carry + $totalRevenue;
-            }, 0);
-
-        $totalHistoricalDamages = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
-            ->where('status', 'S') // Only successful purchase orders
-            ->get()
-            ->reduce(function ($carry, $order) {
-                $totalDamages = 0;
-                foreach ($order->deliveries as $delivery) {
-                    foreach ($delivery->deliveryProducts as $deliveryProduct) {
-                        $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
-
-                        if ($productDetail) {
-                            $totalDamages += $deliveryProduct->no_of_damages * $productDetail->price;
-                        }
-                    }
-                }
-                return $carry + $totalDamages;
-            }, 0);
-
-        $responseData['TotalRevenueOfPurchaseOrder'] = number_format($totalHistoricalRevenue, 2);
-        $responseData['TotalDamagesOfPurchaseOrder'] = number_format($totalHistoricalDamages, 2);
-
-        // Calculate and format the contribution percentage
-        if ($totalRevenuePreviousMonth > 0) {
-            $contributionPercentage = ($totalRevenueCurrentMonth / $totalRevenuePreviousMonth) * 100;
-            $responseData['ContributionPercentage'] = number_format($contributionPercentage, 2);
-        } else {
-            $responseData['ContributionPercentage'] = '0.00';
-        }
-
-        Log::info('Final Response Data:', $responseData);
-
-        return response()->json($responseData, 200);
+        return response()->json([
+            'totalSuccessDeliveredProduct' => $totalSuccessDeliveredProduct,
+            'monthTotalSales' => $formattedMonthTotalSales,
+            'monthTotalDamageCost' => $formattedMonthTotalDamageCost,
+            'successfulDeliveriesCount' => $successfulDeliveriesCount,
+        ]);
     }
 
+    public function MonthChartData(Request $request)
+    {
+        // Get the month and year from the request, or default to the current month
+        $month = $request->input('month', now()->format('m'));
+        $year = $request->input('year', now()->format('Y'));
+
+        // Query for daily sales and damage worth
+        $dailyData = DB::table('delivery_products')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->join('products', 'delivery_products.product_id', '=', 'products.id')
+            ->join('product_details', 'products.id', '=', 'product_details.product_id')
+            ->select(
+                DB::raw('DAY(deliveries.created_at) as day'),
+                DB::raw('SUM(delivery_products.quantity * product_details.price) as dailyTotalSales'),
+                DB::raw('SUM(delivery_products.no_of_damages * product_details.price) as dailyTotalDamageCost')
+            )
+            ->where('deliveries.status', 'S') // Only include successful deliveries
+            ->whereMonth('deliveries.created_at', $month)
+            ->whereYear('deliveries.created_at', $year)
+            ->groupBy(DB::raw('DAY(deliveries.created_at)')) // Group by day of the month
+            ->orderBy('day', 'asc') // Ensure data is in chronological order
+            ->get();
+
+        // Format the results for the response
+        $formattedDailyData = $dailyData->map(function ($data) {
+            return [
+                'day' => $data->day,
+                'dailyTotalSales' => number_format($data->dailyTotalSales, 2, '.', ','),
+                'dailyTotalDamageCost' => number_format($data->dailyTotalDamageCost, 2, '.', ','),
+            ];
+        });
+
+        return response()->json([
+            'dailyData' => $formattedDailyData,
+        ]);
+    }
+
+    // Month Data
 
 
 
@@ -224,5 +180,143 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         ], 200);
     }
 
+
+    // public function monthlyData(Request $request)
+    // {
+    //     $month = $request->input('month', Carbon::now()->month);
+    //     $year = $request->input('year', Carbon::now()->year);
+
+    //     Log::info("Fetching data for Month: $month, Year: $year");
+
+    //     $purchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
+    //         ->whereYear('created_at', $year)
+    //         ->whereMonth('created_at', $month)
+    //         ->where('status', 'S') // Only successful purchase orders
+    //         ->get();
+
+    //     $responseData = [];
+    //     $totalRevenueCurrentMonth = 0;
+    //     $totalDamagesCurrentMonth = 0;
+
+    //     foreach ($purchaseOrders as $order) {
+    //         $totalRevenue = 0;
+    //         $totalDamagesValue = 0;
+
+    //         // Calculate total revenue and damages for the order
+    //         foreach ($order->productDetails as $productDetail) {
+    //             $totalRevenue += $productDetail->price * $productDetail->quantity;
+    //         }
+
+    //         foreach ($order->deliveries as $delivery) {
+    //             foreach ($delivery->deliveryProducts as $deliveryProduct) {
+    //                 // Match the product in deliveryProducts with productDetails to get the price
+    //                 $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
+
+    //                 if ($productDetail) {
+    //                     $totalDamagesValue += $deliveryProduct->no_of_damages * $productDetail->price;
+    //                 }
+    //             }
+    //         }
+
+    //         $totalRevenueCurrentMonth += $totalRevenue;
+    //         $totalDamagesCurrentMonth += $totalDamagesValue;
+
+    //         $responseData['Per_PurchaseOrderTotal'][] = [
+    //             'purchase_order_id' => $order->id,
+    //             'customer_name' => $order->customer_name,
+    //             'total_revenue' => number_format($totalRevenue, 2),
+    //             'date' => Carbon::parse($order->created_at)->format('M-d-Y'),
+    //             'total_damages' => number_format($totalDamagesValue, 2),
+    //         ];
+    //     }
+
+    //     $responseData['CurrentPurchaseOrderRevenue'] = number_format($totalRevenueCurrentMonth, 2);
+    //     $responseData['CurrentMonthDamages'] = number_format($totalDamagesCurrentMonth, 2);
+
+    //     // Process previous month's data
+    //     $previousMonth = $month - 1;
+    //     $previousYear = $year;
+    //     if ($previousMonth == 0) {
+    //         $previousMonth = 12;
+    //         $previousYear--;
+    //     }
+
+    //     $previousPurchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
+    //         ->whereYear('created_at', $previousYear)
+    //         ->whereMonth('created_at', $previousMonth)
+    //         ->where('status', 'S') // Only successful purchase orders
+    //         ->get();
+
+    //     $totalRevenuePreviousMonth = 0;
+    //     $totalDamagesPreviousMonth = 0;
+
+    //     foreach ($previousPurchaseOrders as $order) {
+    //         $totalRevenue = 0;
+    //         $totalDamagesValue = 0;
+
+    //         foreach ($order->productDetails as $productDetail) {
+    //             $totalRevenue += $productDetail->price * $productDetail->quantity;
+    //         }
+
+    //         foreach ($order->deliveries as $delivery) {
+    //             foreach ($delivery->deliveryProducts as $deliveryProduct) {
+    //                 $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
+
+    //                 if ($productDetail) {
+    //                     $totalDamagesValue += $deliveryProduct->no_of_damages * $productDetail->price;
+    //                 }
+    //             }
+    //         }
+
+    //         $totalRevenuePreviousMonth += $totalRevenue;
+    //         $totalDamagesPreviousMonth += $totalDamagesValue;
+    //     }
+
+    //     $responseData['PreviousMonthRevenue'] = number_format($totalRevenuePreviousMonth, 2);
+    //     $responseData['PreviousMonthDamages'] = number_format($totalDamagesPreviousMonth, 2);
+
+    //     // Calculate total historical revenue and damages
+    //     $totalHistoricalRevenue = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
+    //         ->where('status', 'S') // Only successful purchase orders
+    //         ->get()
+    //         ->reduce(function ($carry, $order) {
+    //             $totalRevenue = $order->productDetails->sum(function ($productDetail) {
+    //                 return $productDetail->price * $productDetail->quantity;
+    //             });
+    //             return $carry + $totalRevenue;
+    //         }, 0);
+
+    //     $totalHistoricalDamages = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts'])
+    //         ->where('status', 'S') // Only successful purchase orders
+    //         ->get()
+    //         ->reduce(function ($carry, $order) {
+    //             $totalDamages = 0;
+    //             foreach ($order->deliveries as $delivery) {
+    //                 foreach ($delivery->deliveryProducts as $deliveryProduct) {
+    //                     $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
+
+    //                     if ($productDetail) {
+    //                         $totalDamages += $deliveryProduct->no_of_damages * $productDetail->price;
+    //                     }
+    //                 }
+    //             }
+    //             return $carry + $totalDamages;
+    //         }, 0);
+
+    //     $responseData['TotalRevenueOfPurchaseOrder'] = number_format($totalHistoricalRevenue, 2);
+    //     $responseData['TotalDamagesOfPurchaseOrder'] = number_format($totalHistoricalDamages, 2);
+
+    //     // Calculate and format the contribution percentage
+    //     if ($totalRevenuePreviousMonth > 0) {
+    //         $contributionPercentage = ($totalRevenueCurrentMonth / $totalRevenuePreviousMonth) * 100;
+    //         $responseData['ContributionPercentage'] = number_format($contributionPercentage, 2);
+    //     } else {
+    //         $responseData['ContributionPercentage'] = '0.00';
+    //     }
+
+    //     Log::info('Final Response Data:', $responseData);
+
+    //     return response()->json($responseData, 200);
+    // }
 
 }
