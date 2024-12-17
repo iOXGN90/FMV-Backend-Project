@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 class PurchaseOrder_SalesInsights_View extends BaseController
 {
     // Month Data
+
     public function MonthData(Request $request)
     {
         // Get the month and year from the request, or default to the current month
@@ -105,80 +106,172 @@ class PurchaseOrder_SalesInsights_View extends BaseController
 
     // Month Data
 
-
-
-
-    public function recordPerMonths(Request $request)
+    // Annual Data
+    public function AnnualData(Request $request)
     {
-        // Get the year from the query parameters, default to the current year
-        $year = $request->query('year', Carbon::now()->year);
+        // Get the year from the request, or default to the current year
+        $year = $request->input('year', now()->format('Y'));
 
-        // Fetch distinct years from the PurchaseOrder table
-        $availableYears = PurchaseOrder::selectRaw('YEAR(created_at) as year')
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year'); // Retrieve available years as an array
+        // Query for total successful delivered products for the year
+        $totalSuccessDeliveredProduct = DB::table('delivery_products')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->where('deliveries.status', 'S')
+            ->whereYear('deliveries.created_at', $year)
+            ->sum('delivery_products.quantity');
 
-        // Initialize the array to hold monthly data
-        $monthlyData = [];
+        // Query for total sales for the year
+        $annualTotalSales = DB::table('delivery_products')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->join('products', 'delivery_products.product_id', '=', 'products.id')
+            ->join('product_details', 'products.id', '=', 'product_details.product_id')
+            ->where('deliveries.status', 'S')
+            ->whereYear('deliveries.created_at', $year)
+            ->sum(DB::raw('delivery_products.quantity * product_details.price'));
 
-        // Loop through each month (1 to 12)
-        for ($month = 1; $month <= 12; $month++) {
-            // Get the purchase orders for the specific year and month with status = 'S'
-            $purchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts', 'saleType'])
-                ->whereYear('created_at', $year)
-                ->whereMonth('created_at', $month)
-                ->where('status', 'S') // Only successful purchase orders
-                ->get();
+        // Query for total damage cost for the year
+        $annualTotalDamageCost = DB::table('delivery_products')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->join('products', 'delivery_products.product_id', '=', 'products.id')
+            ->join('product_details', 'products.id', '=', 'product_details.product_id')
+            ->where('deliveries.status', 'S')
+            ->whereYear('deliveries.created_at', $year)
+            ->sum(DB::raw('delivery_products.no_of_damages * product_details.price'));
 
-            $totalRevenue = 0;
-            $totalDamages = 0;
+        // Query for total successful deliveries count for the year
+        $successfulDeliveriesCount = DB::table('deliveries')
+            ->where('status', 'S')
+            ->whereYear('created_at', $year)
+            ->count();
 
-            // Loop through the purchase orders and calculate revenue and damages
-            foreach ($purchaseOrders as $order) {
-                if ($order->saleType->sale_type_name === 'Walk-In') {
-                    // Process Walk-In orders using productDetails
-                    foreach ($order->productDetails as $productDetail) {
-                        $totalRevenue += $productDetail->price * $productDetail->quantity;
-                    }
-                } else {
-                    // Process Delivery orders using deliveryProducts
-                    foreach ($order->deliveries as $delivery) {
-                        foreach ($delivery->deliveryProducts as $deliveryProduct) {
-                            // Calculate revenue and damages for valid deliveries
-                            $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
+        // Format annualTotalSales and annualTotalDamageCost to 2 decimal places
+        $formattedAnnualTotalSales = number_format($annualTotalSales, 2, '.', ',');
+        $formattedAnnualTotalDamageCost = number_format($annualTotalDamageCost, 2, '.', ',');
 
-                            if ($productDetail) {
-                                $productPrice = $productDetail->price;
-                                $quantity = $deliveryProduct->quantity;
-                                $damages = $deliveryProduct->no_of_damages;
-
-                                $totalRevenue += $quantity * $productPrice;
-                                $totalDamages += $damages * $productPrice;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Format the month name
-            $formattedMonth = Carbon::create($year, $month, 1)->format('F');
-
-            // Add the monthly data to the array
-            $monthlyData[] = [
-                'month' => $formattedMonth,
-                'total_revenue' => number_format($totalRevenue, 2),
-                'total_damages' => number_format($totalDamages, 2),
-            ];
-        }
-
-        // Return both the monthly data and available years in the response
+        // Return response in JSON format
         return response()->json([
-            'year' => $year,
-            'available_years' => $availableYears,
-            'data' => $monthlyData
-        ], 200);
+            'totalSuccessDeliveredProduct' => $totalSuccessDeliveredProduct,
+            'annualTotalSales' => $formattedAnnualTotalSales,
+            'annualTotalDamageCost' => $formattedAnnualTotalDamageCost,
+            'successfulDeliveriesCount' => $successfulDeliveriesCount,
+        ]);
     }
+
+
+    public function AnnualChartData(Request $request)
+    {
+        // Get the year from the request, or default to the current year
+        $year = $request->input('year', now()->format('Y'));
+
+        // Query for monthly sales and damage worth
+        $monthlyData = DB::table('delivery_products')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->join('products', 'delivery_products.product_id', '=', 'products.id')
+            ->join('product_details', 'products.id', '=', 'product_details.product_id')
+            ->select(
+                DB::raw('MONTH(deliveries.created_at) as month'),
+                DB::raw('SUM(delivery_products.quantity * product_details.price) as monthlyTotalSales'),
+                DB::raw('SUM(delivery_products.no_of_damages * product_details.price) as monthlyTotalDamageCost')
+            )
+            ->where('deliveries.status', 'S') // Only include successful deliveries
+            ->whereYear('deliveries.created_at', $year) // Filter by year
+            ->groupBy(DB::raw('MONTH(deliveries.created_at)')) // Group by month of the year
+            ->orderBy('month', 'asc') // Ensure data is in chronological order
+            ->get();
+
+        // Format the results for the response
+        $formattedMonthlyData = $monthlyData->map(function ($data) {
+            return [
+                'month' => $data->month,
+                'monthlyTotalSales' => number_format($data->monthlyTotalSales, 2, '.', ','),
+                'monthlyTotalDamageCost' => number_format($data->monthlyTotalDamageCost, 2, '.', ','),
+            ];
+        });
+
+        // Return formatted response
+        return response()->json([
+            'monthlyData' => $formattedMonthlyData,
+        ]);
+    }
+
+
+
+    // Annual Data
+
+
+
+
+
+    // public function recordPerMonths(Request $request)
+    // {
+    //     // Get the year from the query parameters, default to the current year
+    //     $year = $request->query('year', Carbon::now()->year);
+
+    //     // Fetch distinct years from the PurchaseOrder table
+    //     $availableYears = PurchaseOrder::selectRaw('YEAR(created_at) as year')
+    //         ->distinct()
+    //         ->orderBy('year', 'desc')
+    //         ->pluck('year'); // Retrieve available years as an array
+
+    //     // Initialize the array to hold monthly data
+    //     $monthlyData = [];
+
+    //     // Loop through each month (1 to 12)
+    //     for ($month = 1; $month <= 12; $month++) {
+    //         // Get the purchase orders for the specific year and month with status = 'S'
+    //         $purchaseOrders = PurchaseOrder::with(['productDetails', 'deliveries.deliveryProducts', 'saleType'])
+    //             ->whereYear('created_at', $year)
+    //             ->whereMonth('created_at', $month)
+    //             ->where('status', 'S') // Only successful purchase orders
+    //             ->get();
+
+    //         $totalRevenue = 0;
+    //         $totalDamages = 0;
+
+    //         // Loop through the purchase orders and calculate revenue and damages
+    //         foreach ($purchaseOrders as $order) {
+    //             if ($order->saleType->sale_type_name === 'Walk-In') {
+    //                 // Process Walk-In orders using productDetails
+    //                 foreach ($order->productDetails as $productDetail) {
+    //                     $totalRevenue += $productDetail->price * $productDetail->quantity;
+    //                 }
+    //             } else {
+    //                 // Process Delivery orders using deliveryProducts
+    //                 foreach ($order->deliveries as $delivery) {
+    //                     foreach ($delivery->deliveryProducts as $deliveryProduct) {
+    //                         // Calculate revenue and damages for valid deliveries
+    //                         $productDetail = $order->productDetails->firstWhere('product_id', $deliveryProduct->product_id);
+
+    //                         if ($productDetail) {
+    //                             $productPrice = $productDetail->price;
+    //                             $quantity = $deliveryProduct->quantity;
+    //                             $damages = $deliveryProduct->no_of_damages;
+
+    //                             $totalRevenue += $quantity * $productPrice;
+    //                             $totalDamages += $damages * $productPrice;
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+
+    //         // Format the month name
+    //         $formattedMonth = Carbon::create($year, $month, 1)->format('F');
+
+    //         // Add the monthly data to the array
+    //         $monthlyData[] = [
+    //             'month' => $formattedMonth,
+    //             'total_revenue' => number_format($totalRevenue, 2),
+    //             'total_damages' => number_format($totalDamages, 2),
+    //         ];
+    //     }
+
+    //     // Return both the monthly data and available years in the response
+    //     return response()->json([
+    //         'year' => $year,
+    //         'available_years' => $availableYears,
+    //         'data' => $monthlyData
+    //     ], 200);
+    // }
 
 
     // public function monthlyData(Request $request)

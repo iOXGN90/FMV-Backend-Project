@@ -187,18 +187,32 @@ use App\Http\Controllers\API\SalesInsight\TopProductSales;
 
 // Sales and Insights
 
-    Route::get('Insights/Monthly-Data', [PurchaseOrder_SalesInsights_View::class, 'monthlyData']);
-    Route::get('Insights/Monthly-Records', [PurchaseOrder_SalesInsights_View::class, 'recordPerMonths']);
-    Route::get('Insights/TopSold-Items', [TopProductSales::class, 'topFiveProducts']);
-    // Route::get('Insights/TopSold-All-Items', [TopProductSales::class, 'topProducts']);
+    // Month
+        Route::get('Insights/View/Month-Data', [PurchaseOrder_SalesInsights_View::class, 'MonthData']);
+        Route::get('Insights/View/Month-Data/Chart', [PurchaseOrder_SalesInsights_View::class, 'MonthChartData']);
+        Route::get('Insights/View/Month-Data/Top-3-Products', [TopProductSales::class, 'topThreeProducts']);
+        Route::get('Insights/View/Month-Data/Top-Sold-Products', [TopProductSales::class, 'topSoldProducts']);
+        Route::get('Insights/View/Month-Data/Top-Damaged-Products', [TopProductSales::class, 'topDamagedProducts']);
+    // Month
 
-    Route::get('Insights/View/Month-Data', [PurchaseOrder_SalesInsights_View::class, 'MonthData']);
-    Route::get('Insights/View/Month-Data/Chart', [PurchaseOrder_SalesInsights_View::class, 'MonthChartData']);
-    Route::get('Insights/View/Month-Data/Top-3-Products', [TopProductSales::class, 'topThreeProducts']);
-    Route::get('Insights/View/Month-Data/Top-Sold-Products', [TopProductSales::class, 'topSoldProducts']);
-    Route::get('Insights/View/Month-Data/Top-Damaged-Products', [TopProductSales::class, 'topDamagedProducts']);
+    // Annual
+        Route::get('Insights/View/Annual-Data/', [PurchaseOrder_SalesInsights_View::class, 'AnnualData']);
+        Route::get('Insights/View/Annual-Data/Chart', [PurchaseOrder_SalesInsights_View::class, 'AnnualChartData']);
+        Route::get('Insights/View/Annual-Data/Top-3-Products', [TopProductSales::class, 'annualTopThreeProducts']);
+        Route::get('Insights/View/Annual-Data/Top-Sold-Products', [TopProductSales::class, 'annualTopSoldProducts']);
+        Route::get('Insights/View/Annual-Data/Top-Damaged-Products', [TopProductSales::class, 'annualTopDamagedProducts']);
+    // Annual
 
-// EDIT and Cancel
+// Sales and Insights
+
+
+    // EDIT and Cancel
 
     Route::get('PurchaseOrder/View/{purchase_order_id}', [PurchaseOrder_Edit::class, 'getPurchaseOrderDetails']);
     Route::post('PurchaseOrder/Edit/{purchase_order_id}/Update', [PurchaseOrder_Edit::class, 'update_purchase_order']);
+
+
+
+    // Route::get('Insights/Monthly-Data', [PurchaseOrder_SalesInsights_View::class, 'monthlyData']);
+    // Route::get('Insights/Monthly-Records', [PurchaseOrder_SalesInsights_View::class, 'recordPerMonths']);
+    // Route::get('Insights/TopSold-Items', [TopProductSales::class, 'topFiveProducts']);

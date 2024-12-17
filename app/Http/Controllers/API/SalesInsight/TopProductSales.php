@@ -131,13 +131,127 @@ class TopProductSales extends BaseController
                 ],
             ], 200);
         }
-
-
-
-
     // Month's Data
 
+    // Annual's Data
 
+        public function annualTopThreeProducts(Request $request)
+        {
+            // Get the year from the request, defaulting to the current year
+            $year = $request->input('year', now()->format('Y'));
+
+            // Query to calculate Top 3 Products based on total quantity sold for the year
+            $topProducts = Product::select(
+                    'products.id as product_id',
+                    'products.product_name',
+                    'products.original_price as price',
+                    DB::raw('SUM(delivery_products.quantity) as total_sold')
+                )
+                ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
+                ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+                ->where('deliveries.status', 'S') // Only include successfully delivered products
+                ->whereYear('deliveries.created_at', $year) // Filter by year
+                ->groupBy('products.id', 'products.product_name', 'products.original_price')
+                ->orderByDesc('total_sold') // Sort by total sold
+                ->limit(3) // Fetch top 3 products
+                ->get();
+
+            // Query to calculate Top 3 Products with the most damages for the year
+            $topDamagedProducts = Product::select(
+                    'products.id as product_id',
+                    'products.product_name',
+                    'products.original_price as price',
+                    DB::raw('SUM(delivery_products.no_of_damages) as total_damages')
+                )
+                ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
+                ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+                ->where('deliveries.status', 'S') // Only include successfully delivered products
+                ->whereYear('deliveries.created_at', $year) // Filter by year
+                ->groupBy('products.id', 'products.product_name', 'products.original_price')
+                ->orderByDesc('total_damages') // Sort by total damages
+                ->limit(3) // Fetch top 3 products with most damages
+                ->get();
+
+            // Return response as JSON
+            return response()->json([
+                'success' => true,
+                'year' => $year,
+                'top_sold_products' => $topProducts,
+                'top_damaged_products' => $topDamagedProducts,
+            ], 200);
+        }
+
+
+        public function annualTopSoldProducts(Request $request)
+        {
+            // Inputs from the request
+            $year = $request->input('year', now()->format('Y')); // Default to current year
+            $perPage = $request->input('perPage', 20);           // Default to 20 items per page
+
+            // Query to fetch top sold products for the entire year
+            $topProducts = Product::select(
+                    'products.id as product_id',
+                    'products.product_name',
+                    'products.original_price as price',
+                    DB::raw('SUM(delivery_products.quantity) as total_sold') // Total quantity sold
+                )
+                ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
+                ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+                ->where('deliveries.status', 'S') // Only successful deliveries
+                ->whereYear('deliveries.created_at', $year) // Filter by year
+                ->groupBy('products.id', 'products.product_name', 'products.original_price')
+                ->orderByDesc('total_sold') // Sort by total_sold in descending order
+                ->paginate($perPage);
+
+            // Return paginated data along with pagination metadata
+            return response()->json([
+                'success' => true,
+                'data' => $topProducts->items(), // Paginated items
+                'pagination' => [
+                    'total' => $topProducts->total(),
+                    'perPage' => $topProducts->perPage(),
+                    'currentPage' => $topProducts->currentPage(),
+                    'lastPage' => $topProducts->lastPage(),
+                ],
+            ], 200);
+        }
+
+
+        public function annualTopDamagedProducts(Request $request)
+        {
+            // Inputs from the request
+            $year = $request->input('year', now()->format('Y')); // Default to current year
+            $perPage = $request->input('perPage', 20);           // Default to 20 items per page
+
+            // Query to fetch top damaged products for the entire year
+            $topDamagedProducts = Product::select(
+                    'products.id as product_id',
+                    'products.product_name',
+                    'products.original_price as price',
+                    DB::raw('SUM(delivery_products.no_of_damages) as total_damages') // Sum valid damages
+                )
+                ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
+                ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+                ->where('deliveries.status', 'S') // Only include successful deliveries
+                ->whereYear('deliveries.created_at', $year) // Filter by year only
+                ->groupBy('products.id', 'products.product_name', 'products.original_price')
+                ->orderByDesc('total_damages') // Sort by total damages in descending order
+                ->paginate($perPage);
+
+            // Return response with paginated data and pagination metadata
+            return response()->json([
+                'success' => true,
+                'data' => $topDamagedProducts->items(), // Paginated data
+                'pagination' => [
+                    'total' => $topDamagedProducts->total(),
+                    'perPage' => $topDamagedProducts->perPage(),
+                    'currentPage' => $topDamagedProducts->currentPage(),
+                    'lastPage' => $topDamagedProducts->lastPage(),
+                ],
+            ], 200);
+        }
+
+    // Annual's Data
 
 
 
