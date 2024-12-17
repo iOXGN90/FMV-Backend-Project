@@ -212,7 +212,6 @@ class ProductRestockController extends BaseController
             case '90_days':
                 $dateLimit = now()->subDays(90);
                 break;
-            case 'all':
             default:
                 $dateLimit = null;
                 break;
@@ -220,57 +219,56 @@ class ProductRestockController extends BaseController
 
         // Fetch Restock Transactions (IN)
         $restocks = DB::table('product_restock_orders')
-        ->join('products', 'product_restock_orders.product_id', '=', 'products.id')
-        ->select(
-            DB::raw('NULL as delivery_id'),
-            'product_restock_orders.quantity',
-            DB::raw('FORMAT(product_restock_orders.quantity * products.original_price, 2) as total_value'),
-            'product_restock_orders.created_at as date', // Correct year from product_restock_orders
-            DB::raw('"IN" as transaction_type'),
-            DB::raw('NULL as delivery_status'),
-            DB::raw('NULL as no_of_damages')
-        );
+            ->join('products', 'product_restock_orders.product_id', '=', 'products.id')
+            ->select(
+                DB::raw('NULL as delivery_id'),
+                'product_restock_orders.quantity',
+                DB::raw('FORMAT(product_restock_orders.quantity * products.original_price, 2) as total_value'),
+                'product_restock_orders.created_at as date',
+                DB::raw('"IN" as transaction_type'),
+                DB::raw('NULL as delivery_status'),
+                DB::raw('NULL as total_damages')
+            )
+            ->where('product_restock_orders.product_id', $product_id);
 
         if ($dateLimit) {
             $restocks->where('product_restock_orders.created_at', '>=', $dateLimit);
         }
 
-        $deliveries = DB::table('delivery_products')
-        ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
-        ->join('product_details', 'delivery_products.product_id', '=', 'product_details.product_id')
-        ->select(
-            'delivery_products.delivery_id',
-            'delivery_products.quantity',
-            DB::raw('FORMAT(delivery_products.quantity * product_details.price, 2) as total_value'),
-            'deliveries.created_at as date', // Correct year from deliveries
-            DB::raw('"OUT" as transaction_type'),
-            'deliveries.status as delivery_status',
-            'delivery_products.no_of_damages'
-        );
+        // Fetch Delivery Transactions (OUT) and execute immediately
+        $deliveries = DB::table('delivery_products as dp')
+            ->join('deliveries as d', 'dp.delivery_id', '=', 'd.id')
+            ->join('product_details as pd', 'd.purchase_order_id', '=', 'pd.purchase_order_id')
+            ->select(
+                'dp.delivery_id',
+                'dp.product_id',
+                'dp.quantity',
+                'pd.price',
+                DB::raw('(dp.quantity * pd.price) AS total_value'),
+                'd.created_at as date',
+                DB::raw('"OUT" as transaction_type'),
+                'd.status as delivery_status'
+            )
+            ->where('dp.product_id', $product_id)
+            ->where('d.status', 'S')
+            ->distinct()
+            ->get(); // EXECUTE the OUT query here
 
-        if ($dateLimit) {
-            $deliveries->where('deliveries.created_at', '>=', $dateLimit);
-        }
+        // Execute the IN query and get results
+        $restockResults = $restocks->get();
 
-        // Combine Queries
-        $transactions = $restocks->unionAll($deliveries);
+        // Combine Results into a Collection
+        $transactions = collect($restockResults)->merge($deliveries);
 
-        // Count Total Transactions
-        $totalTransactions = DB::table(DB::raw("({$transactions->toSql()}) as combined"))
-            ->mergeBindings($transactions)
-            ->count();
+        // Sort Transactions by Date
+        $sortedTransactions = $transactions->sortByDesc('date')->values();
 
-        // Paginate Transactions
+        // Pagination Setup
         $perPage = $request->input('perPage', 20);
         $currentPage = $request->input('page', 1);
         $offset = ($currentPage - 1) * $perPage;
 
-        $paginatedTransactions = DB::table(DB::raw("({$transactions->toSql()}) as combined"))
-            ->mergeBindings($transactions)
-            ->orderBy('date', 'desc')
-            ->offset($offset)
-            ->limit($perPage)
-            ->get();
+        $paginatedTransactions = $sortedTransactions->slice($offset, $perPage)->values();
 
         // Return Response
         return response()->json([
@@ -281,15 +279,13 @@ class ProductRestockController extends BaseController
             'transactions' => [
                 'data' => $paginatedTransactions,
                 'pagination' => [
-                    'total' => $totalTransactions,
+                    'total' => $transactions->count(),
                     'perPage' => $perPage,
                     'currentPage' => $currentPage,
-                    'lastPage' => ceil($totalTransactions / $perPage),
+                    'lastPage' => ceil($transactions->count() / $perPage),
                 ],
             ],
         ]);
     }
-
-
 
 }

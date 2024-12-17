@@ -88,11 +88,6 @@ class Product_View extends BaseController
             'totalValue' => number_format($totalValue, 2, '.', ''), // Format total value
         ]);
     }
-
-
-
-
-
     public function index_overview(Request $request)
     {
         // Validate or set default values
@@ -109,6 +104,10 @@ class Product_View extends BaseController
             'success' => true,
             'data' => $products
         ]);
+    }
+
+    public function lowProductLevel(){
+
     }
 
 

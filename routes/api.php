@@ -169,11 +169,11 @@ use App\Http\Controllers\API\SalesInsight\TopProductSales;
     Route::put('products/{id}', [ProductController::class, 'update']);
     Route::get('products', [Product_View::class, 'index']);
     Route::get('products-overview', [Product_View::class, 'index_overview']);
-
+    Route::get('products/low-level', [Product_View::class, 'lowProductLevel']);
 
 // End Product
 
-    Route::get('view/{product_id}/per-product-restock/', [ProductRestockController::class, 'productTransactions']);
+    Route::get('view/{product_id}/Product-Profile/', [ProductRestockController::class, 'productTransactions']);
     Route::get('view/reorder-level', [ProductRestockController::class, 'reorderLevel']);
 
 // Start Product ReStocks
