@@ -32,6 +32,7 @@ class PurchaseOrderController extends BaseController
             'address.barangay' => 'required|string|max:255',
             'address.zip_code' => 'required|integer',
             'address.province' => 'required|string|max:255',
+            'address.region' => 'required|string|max:255',  // Add this line for region validation
             'product_details' => 'required|array',
             'product_details.*.product_id' => 'required|exists:products,id',
             'product_details.*.price' => 'required|numeric',
@@ -71,8 +72,9 @@ class PurchaseOrderController extends BaseController
 
         DB::beginTransaction();
         try {
-            // Create the address
-            $address = Address::create($request->input('address'));
+            // Create the address with the region field
+            $addressData = $request->input('address');
+            $address = Address::create($addressData);  // The Address model should be able to accept 'region'
 
             // Create the purchase order
             $purchaseOrderData = $request->only(['user_id', 'customer_name', 'status', 'sale_type_id']);

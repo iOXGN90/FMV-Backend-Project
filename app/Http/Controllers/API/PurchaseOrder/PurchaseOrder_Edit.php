@@ -31,7 +31,8 @@ class PurchaseOrder_Edit extends BaseController
                 'addresses.barangay',
                 'addresses.city',
                 'addresses.province',
-                'addresses.zip_code'
+                'addresses.zip_code',
+                'addresses.region'
             )
             ->first();
 
@@ -97,6 +98,7 @@ class PurchaseOrder_Edit extends BaseController
                 'city' => $purchaseOrder->city,
                 'province' => $purchaseOrder->province,
                 'zip_code' => $purchaseOrder->zip_code,
+                'region' => $purchaseOrder->region, // Include region in the address data
             ],
             'products' => $result
         ]);
@@ -105,18 +107,20 @@ class PurchaseOrder_Edit extends BaseController
 
     public function update_purchase_order(Request $request, $purchase_order_id)
     {
+        // Validate the incoming request data
         $validator = Validator::make($request->all(), [
             'customer_name' => 'required|string|max:255',
             'status' => 'required|in:P,F,S',
             'address.street' => 'required|string|max:255',
             'address.barangay' => 'required|string|max:255',
-            'address.zip_code' => 'required|integer',
+            'address.zip_code' => 'required|string',  // Ensure zip_code is a string
             'address.province' => 'required|string|max:255',
+            'address.region' => 'required|string|max:255',
             'product_details' => 'required|array',
             'product_details.*.product_id' => 'required|exists:products,id',
             'product_details.*.price' => 'required|numeric',
             'product_details.*.quantity' => 'required|integer|min:1',
-            'removed_products' => 'array', // Optional: List of product IDs to remove
+            'removed_products' => 'array',
             'removed_products.*' => 'exists:product_details,product_id',
         ]);
 
@@ -138,7 +142,7 @@ class PurchaseOrder_Edit extends BaseController
                 'status' => $request->input('status'),
             ]);
 
-            // Update the address
+            // Update the address with the region field
             $addressData = $request->input('address');
             $purchaseOrder->address->update($addressData);
 
@@ -149,13 +153,11 @@ class PurchaseOrder_Edit extends BaseController
             foreach ($productDetails as $detail) {
                 $productDetail = $existingProductDetails->firstWhere('product_id', $detail['product_id']);
                 if ($productDetail) {
-                    // Update existing product detail
                     $productDetail->update([
                         'price' => $detail['price'],
                         'quantity' => $detail['quantity'],
                     ]);
                 } else {
-                    // Create new product detail if not found
                     ProductDetail::create([
                         'purchase_order_id' => $purchaseOrder->id,
                         'product_id' => $detail['product_id'],
