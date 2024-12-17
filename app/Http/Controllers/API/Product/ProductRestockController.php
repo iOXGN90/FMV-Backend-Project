@@ -27,6 +27,7 @@ class ProductRestockController extends BaseController
         // Fetch all products with their category
         $products = Product::with('category')->get();
 
+        // Calculate reorder details
         $results = $products->map(function ($product) use ($leadTime) {
             // Fetch total successful deliveries (use the last 30 days by default)
             $successfulDeliveries = DB::table('delivery_products')
@@ -49,17 +50,23 @@ class ProductRestockController extends BaseController
                 'product_id' => $product->id,
                 'product_name' => $product->product_name,
                 'current_quantity' => $product->quantity,
-                'category_name' => $product->category->name ?? 'Uncategorized',
+                'category_name' => $product->category->category_name ?? 'Uncategorized',
                 'average_daily_usage' => round($averageDailyUsage, 2),
                 'reorder_level' => round($reorderLevel, 2),
                 'needs_reorder' => $product->quantity <= $reorderLevel,
             ];
         });
 
+        // Filter to include only products that need reorder
+        $filteredResults = $results->filter(function ($product) {
+            return $product['needs_reorder'] === true;
+        });
+
         return response()->json([
-            'data' => $results,
+            'data' => $filteredResults->values(), // Reset array keys
         ]);
     }
+
 
 
 
@@ -287,5 +294,11 @@ class ProductRestockController extends BaseController
             ],
         ]);
     }
+
+
+
+
+
+
 
 }

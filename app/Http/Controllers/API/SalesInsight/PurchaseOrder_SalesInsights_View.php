@@ -20,7 +20,7 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         $month = $request->input('month', now()->format('m'));
         $year = $request->input('year', now()->format('Y'));
 
-        // Query for total successful delivered products
+        // Query for total successful delivered products (Deliveries + Walk-Ins)
         $totalSuccessDeliveredProduct = DB::table('delivery_products')
             ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
             ->where('deliveries.status', 'S')
@@ -28,7 +28,19 @@ class PurchaseOrder_SalesInsights_View extends BaseController
             ->whereYear('deliveries.created_at', $year)
             ->sum('delivery_products.quantity');
 
-        // Query for total sales
+        // Add Walk-In product quantities with status 'S'
+        $totalWalkInProduct = DB::table('product_details')
+            ->join('purchase_orders', 'purchase_orders.id', '=', 'product_details.purchase_order_id')
+            ->where('purchase_orders.sale_type_id', 2) // Walk-In Sales
+            ->where('purchase_orders.status', 'S') // Only successful Walk-In orders
+            ->whereMonth('purchase_orders.created_at', $month)
+            ->whereYear('purchase_orders.created_at', $year)
+            ->sum('product_details.quantity');
+
+        // Combine totals
+        $totalSuccessDeliveredProduct += $totalWalkInProduct;
+
+        // Query for total sales from deliveries
         $monthTotalSales = DB::table('delivery_products')
             ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
             ->join('products', 'delivery_products.product_id', '=', 'products.id')
@@ -37,6 +49,17 @@ class PurchaseOrder_SalesInsights_View extends BaseController
             ->whereMonth('deliveries.created_at', $month)
             ->whereYear('deliveries.created_at', $year)
             ->sum(DB::raw('delivery_products.quantity * product_details.price'));
+
+        // Add Walk-In Sales to MonthTotalSales
+        $walkInSales = DB::table('purchase_orders')
+            ->join('product_details', 'purchase_orders.id', '=', 'product_details.purchase_order_id')
+            ->where('purchase_orders.sale_type_id', 2)
+            ->where('purchase_orders.status', 'S') // Only successful Walk-In orders
+            ->whereMonth('purchase_orders.created_at', $month)
+            ->whereYear('purchase_orders.created_at', $year)
+            ->sum(DB::raw('product_details.quantity * product_details.price'));
+
+        $monthTotalSales += $walkInSales;
 
         // Query for total damage cost
         $monthTotalDamageCost = DB::table('delivery_products')
@@ -59,13 +82,18 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         $formattedMonthTotalSales = number_format($monthTotalSales, 2, '.', ',');
         $formattedMonthTotalDamageCost = number_format($monthTotalDamageCost, 2, '.', ',');
 
+        // Return response
         return response()->json([
             'totalSuccessDeliveredProduct' => $totalSuccessDeliveredProduct,
+            'totalWalkInProduct' => $totalWalkInProduct,
             'monthTotalSales' => $formattedMonthTotalSales,
             'monthTotalDamageCost' => $formattedMonthTotalDamageCost,
             'successfulDeliveriesCount' => $successfulDeliveriesCount,
+            'totalWalkInValueCost' => number_format($walkInSales, 2, '.', ','),
         ]);
+
     }
+
 
     public function MonthChartData(Request $request)
     {
@@ -73,25 +101,47 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         $month = $request->input('month', now()->format('m'));
         $year = $request->input('year', now()->format('Y'));
 
-        // Query for daily sales and damage worth
-        $dailyData = DB::table('delivery_products')
-            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
-            ->join('products', 'delivery_products.product_id', '=', 'products.id')
-            ->join('product_details', 'products.id', '=', 'product_details.product_id')
+        $dailyDeliveryData = DB::table('delivery_products')
+        ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+        ->join('products', 'delivery_products.product_id', '=', 'products.id')
+        ->join('product_details', 'products.id', '=', 'product_details.product_id')
+        ->select(
+            DB::raw('DAY(deliveries.created_at) as day'),
+            DB::raw('SUM(delivery_products.quantity * product_details.price) as dailyTotalSales'),
+            DB::raw('SUM(delivery_products.no_of_damages * product_details.price) as dailyTotalDamageCost')
+        )
+        ->where('deliveries.status', 'S')
+        ->whereMonth('deliveries.created_at', $month)
+        ->whereYear('deliveries.created_at', $year)
+        ->groupBy(DB::raw('DAY(deliveries.created_at)'));
+
+        $dailyWalkInData = DB::table('purchase_orders')
+            ->join('product_details', 'purchase_orders.id', '=', 'product_details.purchase_order_id')
             ->select(
-                DB::raw('DAY(deliveries.created_at) as day'),
-                DB::raw('SUM(delivery_products.quantity * product_details.price) as dailyTotalSales'),
-                DB::raw('SUM(delivery_products.no_of_damages * product_details.price) as dailyTotalDamageCost')
+                DB::raw('DAY(purchase_orders.created_at) as day'),
+                DB::raw('SUM(product_details.quantity * product_details.price) as dailyTotalSales'),
+                DB::raw('0 as dailyTotalDamageCost') // No damages for walk-in sales
             )
-            ->where('deliveries.status', 'S') // Only include successful deliveries
-            ->whereMonth('deliveries.created_at', $month)
-            ->whereYear('deliveries.created_at', $year)
-            ->groupBy(DB::raw('DAY(deliveries.created_at)')) // Group by day of the month
-            ->orderBy('day', 'asc') // Ensure data is in chronological order
+            ->where('purchase_orders.sale_type_id', 2)
+            ->whereMonth('purchase_orders.created_at', $month)
+            ->whereYear('purchase_orders.created_at', $year)
+            ->groupBy(DB::raw('DAY(purchase_orders.created_at)'));
+
+        // Combine queries
+        $combinedData = DB::table(DB::raw("({$dailyDeliveryData->toSql()} UNION ALL {$dailyWalkInData->toSql()}) as combined"))
+            ->mergeBindings($dailyDeliveryData)
+            ->mergeBindings($dailyWalkInData)
+            ->select(
+                'day',
+                DB::raw('SUM(dailyTotalSales) as dailyTotalSales'),
+                DB::raw('SUM(dailyTotalDamageCost) as dailyTotalDamageCost')
+            )
+            ->groupBy('day')
+            ->orderBy('day', 'asc')
             ->get();
 
         // Format the results for the response
-        $formattedDailyData = $dailyData->map(function ($data) {
+        $formattedDailyData = $combinedData->map(function ($data) {
             return [
                 'day' => $data->day,
                 'dailyTotalSales' => number_format($data->dailyTotalSales, 2, '.', ','),
@@ -104,6 +154,7 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         ]);
     }
 
+
     // Month Data
 
     // Annual Data
@@ -112,14 +163,25 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         // Get the year from the request, or default to the current year
         $year = $request->input('year', now()->format('Y'));
 
-        // Query for total successful delivered products for the year
+        // Query for total successful delivered products (Deliveries Only)
         $totalSuccessDeliveredProduct = DB::table('delivery_products')
             ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
             ->where('deliveries.status', 'S')
             ->whereYear('deliveries.created_at', $year)
             ->sum('delivery_products.quantity');
 
-        // Query for total sales for the year
+        // Query for total Walk-In product quantity (sale_type_id = 2)
+        $totalWalkInProduct = DB::table('product_details')
+            ->join('purchase_orders', 'purchase_orders.id', '=', 'product_details.purchase_order_id')
+            ->where('purchase_orders.sale_type_id', 2) // Walk-In Sale
+            ->where('purchase_orders.status', 'S') // Only successful Walk-In orders
+            ->whereYear('purchase_orders.created_at', $year)
+            ->sum('product_details.quantity');
+
+        // Combine total quantities
+        $totalSuccessDeliveredProduct += $totalWalkInProduct;
+
+        // Query for total sales from deliveries
         $annualTotalSales = DB::table('delivery_products')
             ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
             ->join('products', 'delivery_products.product_id', '=', 'products.id')
@@ -128,7 +190,18 @@ class PurchaseOrder_SalesInsights_View extends BaseController
             ->whereYear('deliveries.created_at', $year)
             ->sum(DB::raw('delivery_products.quantity * product_details.price'));
 
-        // Query for total damage cost for the year
+        // Query for Walk-In Sales (sale_type_id = 2)
+        $walkInSales = DB::table('purchase_orders')
+            ->join('product_details', 'purchase_orders.id', '=', 'product_details.purchase_order_id')
+            ->where('purchase_orders.sale_type_id', 2)
+            ->where('purchase_orders.status', 'S') // Only successful Walk-In orders
+            ->whereYear('purchase_orders.created_at', $year)
+            ->sum(DB::raw('product_details.quantity * product_details.price'));
+
+        // Combine Walk-In Sales with Annual Total Sales
+        $annualTotalSales += $walkInSales;
+
+        // Query for total damage cost
         $annualTotalDamageCost = DB::table('delivery_products')
             ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
             ->join('products', 'delivery_products.product_id', '=', 'products.id')
@@ -137,7 +210,7 @@ class PurchaseOrder_SalesInsights_View extends BaseController
             ->whereYear('deliveries.created_at', $year)
             ->sum(DB::raw('delivery_products.no_of_damages * product_details.price'));
 
-        // Query for total successful deliveries count for the year
+        // Query for total successful deliveries count
         $successfulDeliveriesCount = DB::table('deliveries')
             ->where('status', 'S')
             ->whereYear('created_at', $year)
@@ -150,11 +223,15 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         // Return response in JSON format
         return response()->json([
             'totalSuccessDeliveredProduct' => $totalSuccessDeliveredProduct,
+            'totalWalkInProduct' => $totalWalkInProduct,
             'annualTotalSales' => $formattedAnnualTotalSales,
             'annualTotalDamageCost' => $formattedAnnualTotalDamageCost,
             'successfulDeliveriesCount' => $successfulDeliveriesCount,
+            'totalWalkInValueCost' => number_format($walkInSales, 2, '.', ','),
         ]);
     }
+
+
 
 
     public function AnnualChartData(Request $request)
@@ -162,8 +239,8 @@ class PurchaseOrder_SalesInsights_View extends BaseController
         // Get the year from the request, or default to the current year
         $year = $request->input('year', now()->format('Y'));
 
-        // Query for monthly sales and damage worth
-        $monthlyData = DB::table('delivery_products')
+        // Query for monthly sales and damage cost (Deliveries)
+        $monthlyDeliveriesData = DB::table('delivery_products')
             ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
             ->join('products', 'delivery_products.product_id', '=', 'products.id')
             ->join('product_details', 'products.id', '=', 'product_details.product_id')
@@ -174,12 +251,35 @@ class PurchaseOrder_SalesInsights_View extends BaseController
             )
             ->where('deliveries.status', 'S') // Only include successful deliveries
             ->whereYear('deliveries.created_at', $year) // Filter by year
-            ->groupBy(DB::raw('MONTH(deliveries.created_at)')) // Group by month of the year
-            ->orderBy('month', 'asc') // Ensure data is in chronological order
+            ->groupBy(DB::raw('MONTH(deliveries.created_at)')); // Group by month
+
+        // Query for monthly Walk-In sales
+        $monthlyWalkInData = DB::table('purchase_orders')
+            ->join('product_details', 'purchase_orders.id', '=', 'product_details.purchase_order_id')
+            ->select(
+                DB::raw('MONTH(purchase_orders.created_at) as month'),
+                DB::raw('SUM(product_details.quantity * product_details.price) as monthlyTotalSales'),
+                DB::raw('0 as monthlyTotalDamageCost') // Walk-in has no damages
+            )
+            ->where('purchase_orders.sale_type_id', 2) // Only Walk-In sales
+            ->whereYear('purchase_orders.created_at', $year) // Filter by year
+            ->groupBy(DB::raw('MONTH(purchase_orders.created_at)')); // Group by month
+
+        // Combine Delivery and Walk-In Data using UNION ALL
+        $combinedMonthlyData = DB::table(DB::raw("({$monthlyDeliveriesData->toSql()} UNION ALL {$monthlyWalkInData->toSql()}) as combined"))
+            ->mergeBindings($monthlyDeliveriesData)
+            ->mergeBindings($monthlyWalkInData)
+            ->select(
+                'month',
+                DB::raw('SUM(monthlyTotalSales) as monthlyTotalSales'),
+                DB::raw('SUM(monthlyTotalDamageCost) as monthlyTotalDamageCost')
+            )
+            ->groupBy('month')
+            ->orderBy('month', 'asc')
             ->get();
 
         // Format the results for the response
-        $formattedMonthlyData = $monthlyData->map(function ($data) {
+        $formattedMonthlyData = $combinedMonthlyData->map(function ($data) {
             return [
                 'month' => $data->month,
                 'monthlyTotalSales' => number_format($data->monthlyTotalSales, 2, '.', ','),
@@ -192,6 +292,7 @@ class PurchaseOrder_SalesInsights_View extends BaseController
             'monthlyData' => $formattedMonthlyData,
         ]);
     }
+
 
 
 

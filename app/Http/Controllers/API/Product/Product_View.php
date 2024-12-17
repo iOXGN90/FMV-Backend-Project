@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\API\Product;
+use App\Http\Controllers\API\Product\ProductRestockController;
 
 use App\Http\Controllers\API\BaseController;
 
@@ -9,6 +10,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use App\Services\ProductService;
 
 class Product_View extends BaseController
 {
@@ -106,9 +108,37 @@ class Product_View extends BaseController
         ]);
     }
 
-    public function lowProductLevel(){
 
+    public function lowProductLevel()
+    {
+        $restockController = new ProductRestockController();
+        $reorderResponse = $restockController->reorderLevel();
+
+        $reorderProducts = $reorderResponse->getData()->data;
+
+        $lowStockProducts = DB::table('products')
+            ->join('categories', 'products.category_id', '=', 'categories.id')
+            ->select(
+                'products.id as product_id',
+                'products.product_name',
+                'categories.safety_stock',
+                'products.quantity as quantity_left'
+            )
+            ->whereColumn('products.quantity', '<=', 'categories.safety_stock')
+            ->get();
+
+        $reorderProductIds = collect($reorderProducts)->pluck('product_id')->toArray();
+
+        $filteredLowStock = $lowStockProducts->filter(function ($product) use ($reorderProductIds) {
+            return !in_array($product->product_id, $reorderProductIds);
+        });
+
+        return response()->json([
+            'data' => $filteredLowStock->values(),
+        ]);
     }
+
+
 
 
 }
