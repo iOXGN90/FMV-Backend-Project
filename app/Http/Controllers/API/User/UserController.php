@@ -132,7 +132,7 @@ class UserController extends BaseController
 
         $validator = Validator::make($input, [
             'user_type_id' => 'sometimes|integer',
-            'name' => 'sometimes|string|max:255',
+            'name' => 'sometimes|string|max:255|regex:/^[a-zA-Z\s\.]*$/',
             'email' => 'nullable|string|email|max:255|unique:users,email,' . $id,
             'username' => 'sometimes|string|max:255|unique:users,username,' . $id,
             'password' => 'sometimes|string|min:8',

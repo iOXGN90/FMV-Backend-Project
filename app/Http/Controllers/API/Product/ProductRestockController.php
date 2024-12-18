@@ -22,71 +22,59 @@ class ProductRestockController extends BaseController
 
     public function reorderLevel(Request $request)
     {
-        // Define lead time
         $leadTime = 14; // Default lead time in days
+        $page = $request->input('page', 1);
+        $limit = $request->input('limit', 10);
 
-        // Get the page number and limit from the request, default to 10 items per page
-        $page = $request->input('page', 1);  // Default to page 1
-        $limit = $request->input('limit', 10); // Default to 10 items per page
-
-        // Fetch products with their category
+        // Fetch all products with category relation
         $products = Product::with('category')
-        ->orderBy('quantity', 'asc') // Sort by current_quantity (ascending order)
-        ->get();
+            ->orderBy('quantity', 'asc')
+            ->get();
 
         // Calculate reorder details
         $results = $products->map(function ($product) use ($leadTime) {
-            // Fetch total successful deliveries (use the last 30 days by default)
             $successfulDeliveries = DB::table('delivery_products')
                 ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
                 ->where('delivery_products.product_id', $product->id)
-                ->whereIn('deliveries.status', ['OD', 'P', 'S']) // Only successful statuses
-                ->where('deliveries.created_at', '>=', now()->subDays(30)) // Last 30 days
+                ->whereIn('deliveries.status', ['OD', 'P', 'S'])
+                ->where('deliveries.created_at', '>=', now()->subDays(30))
                 ->sum('delivery_products.quantity');
 
-            // Calculate average daily usage
             $averageDailyUsage = $successfulDeliveries / 30;
-
-            // Determine safety stock (from category or default to 70)
             $safetyStock = $product->category->safety_stock ?? 70;
-
-            // Calculate reorder level
-            $reorderLevel = ($averageDailyUsage * $leadTime) + $safetyStock;
+            $reorderLevel = ($averageDailyUsage * 14) + $safetyStock;
 
             return [
                 'product_id' => $product->id,
-                'delivered_products' => $successfulDeliveries,
-                'safe_stock' => $safetyStock,
                 'product_name' => $product->product_name,
                 'current_quantity' => $product->quantity,
-                'category_name' => $product->category->category_name ?? 'Uncategorized',
-                'average_daily_usage' => round($averageDailyUsage, 2),
                 'reorder_level' => round($reorderLevel, 2),
                 'needs_reorder' => $product->quantity <= $reorderLevel,
             ];
         });
 
-        // Filter to include only products that need reorder
-        $filteredResults = $results->filter(function ($product) {
-            return $product['needs_reorder'] === true;
-        });
+        // Filter products needing reorder
+        $filteredResults = $results->filter(fn($product) => $product['needs_reorder']);
 
-        // Paginate the results (limited to $limit per page)
-        $paginatedResults = $filteredResults->forPage($page, $limit);
+        // Get total count of products that need reorder
+        $totalReorderCount = $filteredResults->count();
 
-        // Calculate the last page based on the total count and items per page
-        $lastPage = ceil($filteredResults->count() / $limit);
+        // Paginate results
+        $paginatedResults = $filteredResults->forPage($page, $limit)->values();
 
+        // Return response with total count and paginated data
         return response()->json([
-            'data' => $paginatedResults->values(),  // Reset array keys
+            'data' => $paginatedResults,
             'pagination' => [
-                'total' => $filteredResults->count(),
+                'total' => $totalReorderCount,
                 'per_page' => $limit,
                 'current_page' => $page,
-                'last_page' => $lastPage,
+                'last_page' => ceil($totalReorderCount / $limit),
             ],
+            'reorder_count' => $totalReorderCount, // Total count of products needing reorder
         ]);
     }
+
 
 
 

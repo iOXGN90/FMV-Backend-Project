@@ -126,7 +126,7 @@ use App\Http\Controllers\API\SalesInsight\TopProductSales;
             Route::post('update-delivery/{delivery_id}', [DeliveryController::class, 'update_delivery']);
             Route::post('update-delivery/{delivery_id}/final', [DeliveryController::class, 'final_update']);
 
-    //! End Delivery Update
+    //! End Delivery Update`
 
     //! Start Get Pending/Success User Delivery
         // Route::get('my-deliveries/sample', [Deliveries_View::class, 'sample']);
