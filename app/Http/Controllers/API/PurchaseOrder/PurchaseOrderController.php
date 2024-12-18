@@ -101,8 +101,6 @@ class PurchaseOrderController extends BaseController
     }
 
 
-
-
     public function cancelPurchaseOrder($purchaseOrderId)
     {
         try {

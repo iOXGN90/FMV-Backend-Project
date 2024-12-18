@@ -60,10 +60,10 @@ class ProductController extends BaseController
     {
         // Validate the request
         $validator = Validator::make($request->all(), [
-            'category_id' => 'required|exists:categories,id',
-            'original_price' => 'required|numeric',
-            'product_name' => 'required|string|max:255', // Ensure the field name matches the database schema
-            'quantity' => 'required|integer',
+            'category_id' => 'nullable|exists:categories,id',  // Category is optional in this case
+            'original_price' => 'nullable|numeric',  // Price is optional and numeric
+            'product_name' => 'nullable|string|max:255',  // Product name is optional
+            'quantity' => 'nullable|integer|min:1',  // Quantity is optional but must be greater than zero
         ]);
 
         // Handle validation errors
@@ -73,13 +73,32 @@ class ProductController extends BaseController
 
         try {
             // Find the product or fail
-            $Product = Product::findOrFail($id);
+            $product = Product::findOrFail($id);
 
-            // Update the product with only allowed fields
-            $Product->update($request->only(['category_id', 'original_price', 'product_name', 'quantity']));
+            // Prepare an array to hold the updated data
+            $updateData = [];
+
+            // Check each field to see if it should be updated
+            if ($request->has('category_id') && $request->category_id != $product->category_id) {
+                $updateData['category_id'] = $request->category_id;
+            }
+            if ($request->has('original_price') && $request->original_price != $product->original_price) {
+                $updateData['original_price'] = $request->original_price;
+            }
+            if ($request->has('product_name') && $request->product_name != $product->product_name) {
+                $updateData['product_name'] = $request->product_name;
+            }
+            if ($request->has('quantity') && $request->quantity != $product->quantity) {
+                $updateData['quantity'] = $request->quantity;
+            }
+
+            // Only update the product if any of the fields changed
+            if (!empty($updateData)) {
+                $product->update($updateData);
+            }
 
             // Return a success response
-            return response()->json(['success' => true, 'data' => $Product], 200);
+            return response()->json(['success' => true, 'data' => $product], 200);
 
         } catch (ModelNotFoundException $e) {
             // Handle the case where the product is not found
@@ -89,6 +108,7 @@ class ProductController extends BaseController
             return response()->json(['message' => 'An error occurred while updating the product'], 500);
         }
     }
+
 
 
     // Remove the specified Product from storage.

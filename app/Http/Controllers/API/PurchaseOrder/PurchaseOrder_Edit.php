@@ -113,7 +113,7 @@ class PurchaseOrder_Edit extends BaseController
             'status' => 'required|in:P,F,S',
             'address.street' => 'required|string|max:255',
             'address.barangay' => 'required|string|max:255',
-            'address.zip_code' => 'required|string',  // Ensure zip_code is a string
+            'address.zip_code' => 'required|string',
             'address.province' => 'required|string|max:255',
             'address.region' => 'required|string|max:255',
             'product_details' => 'required|array',

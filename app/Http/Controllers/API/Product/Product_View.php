@@ -69,6 +69,7 @@ class Product_View extends BaseController
 
             return [
                 'product_id' => $product->id,
+                'category_id' => $product->category->id,
                 'category_name' => $product->category->category_name ?? 'Uncategorized',
                 'product_name' => $product->product_name,
                 'original_price' => number_format($product->original_price, 2, '.', ''), // Format price
@@ -116,6 +117,7 @@ class Product_View extends BaseController
 
         $reorderProducts = $reorderResponse->getData()->data;
 
+        // Fetch low stock products where quantity <= 100
         $lowStockProducts = DB::table('products')
             ->join('categories', 'products.category_id', '=', 'categories.id')
             ->select(
@@ -124,11 +126,13 @@ class Product_View extends BaseController
                 'categories.safety_stock',
                 'products.quantity as quantity_left'
             )
-            ->whereColumn('products.quantity', '<=', 'categories.safety_stock')
+            ->where('products.quantity', '<=', 120)  // Fetch only products where quantity is <= 100
             ->get();
 
+        // Extract product ids of reorder products
         $reorderProductIds = collect($reorderProducts)->pluck('product_id')->toArray();
 
+        // Filter out the products that are already part of the reorder list
         $filteredLowStock = $lowStockProducts->filter(function ($product) use ($reorderProductIds) {
             return !in_array($product->product_id, $reorderProductIds);
         });
@@ -137,6 +141,7 @@ class Product_View extends BaseController
             'data' => $filteredLowStock->values(),
         ]);
     }
+
 
 
 

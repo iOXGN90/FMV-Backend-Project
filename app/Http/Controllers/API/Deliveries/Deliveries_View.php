@@ -95,6 +95,7 @@ class Deliveries_View extends BaseController
             // Calculate time exceeded
             $timeExceeded = $delivery->delivered_at
                 ? now()->greaterThanOrEqualTo(Carbon::parse($delivery->delivered_at)->addMinutes(1))
+                // ? now()->greaterThanOrEqualTo(Carbon::parse($delivery->delivered_at)->addDays(7))
                 : false;
 
             return [

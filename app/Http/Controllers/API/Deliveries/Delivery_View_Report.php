@@ -25,7 +25,9 @@ class Delivery_View_Report extends BaseController
             // Calculate `timeExceeded` based on `delivered_at`
             $timeExceeded = false; // Default to false
             if ($delivery->delivered_at) {
-                $deliveredAtPlusOneMinute = $delivery->delivered_at->copy()->addMinute(2); // Add 1 minute to `delivered_at`
+                $deliveredAtPlusOneMinute = $delivery->delivered_at->copy()->addMinute(1); // Add 1 minute to `delivered_at`
+                // $deliveredAtPlusSevenDays = $delivery->delivered_at->copy()->addDays(7); // Add 7 days to `delivered_at`
+
                 $timeExceeded = now()->greaterThanOrEqualTo($deliveredAtPlusOneMinute); // Check if current time exceeds the threshold
             }
 
