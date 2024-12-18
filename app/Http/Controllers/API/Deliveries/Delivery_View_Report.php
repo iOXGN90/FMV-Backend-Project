@@ -13,7 +13,7 @@ class Delivery_View_Report extends BaseController
     {
         try {
             $delivery = Delivery::with([
-                'deliveryProducts.product.productDetails', // Access product details through products
+                'deliveryProducts.product.productDetails',
                 'images',
                 'user',
             ])->find($delivery_id);
@@ -22,38 +22,37 @@ class Delivery_View_Report extends BaseController
                 return response()->json(['message' => 'Delivery not found'], 404);
             }
 
-            // Calculate `timeExceeded` based on `delivered_at`
-            $timeExceeded = false; // Default to false
+            $timeExceeded = false;
             if ($delivery->delivered_at) {
-                $deliveredAtPlusOneMinute = $delivery->delivered_at->copy()->addMinute(1); // Add 1 minute to `delivered_at`
-                // $deliveredAtPlusSevenDays = $delivery->delivered_at->copy()->addDays(7); // Add 7 days to `delivered_at`
-
-                $timeExceeded = now()->greaterThanOrEqualTo($deliveredAtPlusOneMinute); // Check if current time exceeds the threshold
+                $deliveredAtPlusOneMinute = $delivery->delivered_at->copy()->addMinute(1);
+                $timeExceeded = now()->greaterThanOrEqualTo($deliveredAtPlusOneMinute);
             }
 
-            $baseUrl = config('app.url');
+            // Set the correct base URL for the images
+            $baseUrl = url('storage'); // This will point to 'http://192.168.1.13:3000/storage'
+
             $images = $delivery->images->map(function ($image) use ($baseUrl) {
                 return [
                     'id' => $image->id,
-                    'url' => $baseUrl . '/' . $image->url,
+                    // Remove '/images' before appending the image path again
+                    'url' => $baseUrl . '/' . $image->url, // This will correctly result in 'http://192.168.1.13:3000/storage/images/image.jpg'
                     'created_at' => $image->created_at->format('m/d/Y H:i'),
                 ];
             });
 
-            // Extract product details and calculate return information
             $products = $delivery->deliveryProducts->map(function ($deliveryProduct) {
-                $return = $deliveryProduct->returns->first(); // Get the first return if exists
-                $productDetail = $deliveryProduct->product->productDetails->first(); // Get the first product detail
+                $return = $deliveryProduct->returns->first();
+                $productDetail = $deliveryProduct->product->productDetails->first();
 
                 return [
-                    'delivery_product_id' => $deliveryProduct->id, // Add delivery_product ID
+                    'delivery_product_id' => $deliveryProduct->id,
                     'product_id' => $deliveryProduct->product_id,
-                    'return_status' => $return ? $return->status : 'NR', // Default to 'NR' if no return found
+                    'return_status' => $return ? $return->status : 'NR',
                     'product_name' => $deliveryProduct->product->product_name,
                     'quantity_delivered' => $deliveryProduct->quantity,
                     'no_of_damages' => $deliveryProduct->no_of_damages,
                     'intact_quantity' => $deliveryProduct->quantity - $deliveryProduct->no_of_damages,
-                    'price' => $productDetail ? $productDetail->price : null, // Include price if exists
+                    'price' => $productDetail ? $productDetail->price : null,
                 ];
             });
 
@@ -67,8 +66,8 @@ class Delivery_View_Report extends BaseController
                     'notes' => $delivery->notes,
                     'status' => $delivery->status,
                     'created_at' => $delivery->created_at->format('m/d/Y H:i'),
-                    'updated_at' => $delivery->updated_at->format('m/d/Y H:i'), // Include `updated_at` in response
-                    'delivered_at' => $delivery->delivered_at ? $delivery->delivered_at->format('m/d/Y H:i') : null, // Include `delivered_at` in response
+                    'updated_at' => $delivery->updated_at->format('m/d/Y H:i'),
+                    'delivered_at' => $delivery->delivered_at ? $delivery->delivered_at->format('m/d/Y H:i') : null,
                 ],
                 'user' => [
                     'id' => $user->id,
@@ -78,12 +77,13 @@ class Delivery_View_Report extends BaseController
                 ],
                 'images' => $images,
                 'products' => $products,
-                'time_exceeded' => $timeExceeded ? 'yes' : 'no', // Return 'yes' or 'no' as a string
+                'time_exceeded' => $timeExceeded ? 'yes' : 'no',
             ], 200);
         } catch (\Exception $e) {
             Log::error('Error in ViewReport:', ['error' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
 
 }

@@ -23,6 +23,9 @@ class DeliveryController extends BaseController
 
     public function update_delivery(Request $request, $id)
     {
+        // Initialize $hasDamages at the start of the method
+        $hasDamages = false;
+
         // Validate request data
         $validator = Validator::make($request->all(), [
             'notes' => 'nullable|string',
@@ -48,7 +51,6 @@ class DeliveryController extends BaseController
             $delivery->notes = $request->input('notes', 'no comment');
 
             // Handle damages and returns status update
-            $hasDamages = false;
             if ($request->has('damages')) {
                 foreach ($request->input('damages') as $damage) {
                     $deliveryProduct = DeliveryProduct::where('delivery_id', $delivery->id)
@@ -66,7 +68,7 @@ class DeliveryController extends BaseController
 
                         if ($damage['no_of_damages'] > 0) {
                             $return->status = 'P'; // Set to Pending if damages exist
-                            $hasDamages = true;
+                            $hasDamages = true; // Mark as having damages
                         } else {
                             $return->status = 'NR'; // No Return if no damages
                         }
@@ -87,6 +89,20 @@ class DeliveryController extends BaseController
                 $delivery->status = 'P'; // Set status to Pending if no damages
             }
 
+            // Handle image upload
+            if ($request->has('images')) {
+                $imageUrls = [];
+                foreach ($request->file('images') as $image) {
+                    $path = $image->store('images', 'public'); // Store image in public disk
+                    $imageUrls[] = $path;
+
+                    // Save the image URL to the images table
+                    $delivery->images()->create([
+                        'url' => $path,
+                    ]);
+                }
+            }
+
             $delivery->save();
             DB::commit();
 
@@ -104,7 +120,7 @@ class DeliveryController extends BaseController
             $images = $delivery->images->map(function ($image) use ($baseUrl) {
                 return [
                     'id' => $image->id,
-                    'url' => $baseUrl . '/' . $image->url,
+                    'url' => $baseUrl . '/storage/' . $image->url, // Ensure you're using public disk path
                     'created_at' => $image->created_at->format('m/d/Y H:i'),
                 ];
             });
@@ -128,8 +144,6 @@ class DeliveryController extends BaseController
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-
-
 
 
 

@@ -16,12 +16,11 @@ class UserController extends BaseController
 
     public function limited(): JsonResponse
     {
-        // Get all users
-        $users = User::all();
+        // Get the oldest 5 users
+        $users = User::orderBy('created_at', 'desc')->limit(3)->get();
 
-        return response()->json(['success' => 'All users retrieved successfully.', 'data' => $users], 200);
+        return response()->json(['success' => 'Newest 3 users retrieved successfully.', 'data' => $users], 200);
     }
-
 
 // Start VIEW ALL USER
     /**
@@ -74,7 +73,7 @@ class UserController extends BaseController
     public function create(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|regex:/^[a-zA-Z\s\.]*$/', // Allow letters, spaces, and periods
             'email' => 'nullable|string|email|max:255|unique:users',
             'username' => 'required|string|max:255|unique:users',
             'password' => 'required|string|min:8',
@@ -92,6 +91,7 @@ class UserController extends BaseController
 
         return response()->json(['success' => 'User created successfully.', 'data' => $user], 201);
     }
+
 // End CREATE USER
 
 // Start DISPLAY SPECIFIC USER

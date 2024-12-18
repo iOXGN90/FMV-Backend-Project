@@ -19,13 +19,20 @@ class ProductRestockController extends BaseController
         return response()->json($ProductRestockOrders);
     }
 
-    public function reorderLevel()
+
+    public function reorderLevel(Request $request)
     {
         // Define lead time
         $leadTime = 14; // Default lead time in days
 
-        // Fetch all products with their category
-        $products = Product::with('category')->get();
+        // Get the page number and limit from the request, default to 10 items per page
+        $page = $request->input('page', 1);  // Default to page 1
+        $limit = $request->input('limit', 10); // Default to 10 items per page
+
+        // Fetch products with their category
+        $products = Product::with('category')
+        ->orderBy('quantity', 'asc') // Sort by current_quantity (ascending order)
+        ->get();
 
         // Calculate reorder details
         $results = $products->map(function ($product) use ($leadTime) {
@@ -38,7 +45,7 @@ class ProductRestockController extends BaseController
                 ->sum('delivery_products.quantity');
 
             // Calculate average daily usage
-            $averageDailyUsage = $successfulDeliveries / 30; // Assume 30 days in the month
+            $averageDailyUsage = $successfulDeliveries / 30;
 
             // Determine safety stock (from category or default to 70)
             $safetyStock = $product->category->safety_stock ?? 70;
@@ -48,6 +55,8 @@ class ProductRestockController extends BaseController
 
             return [
                 'product_id' => $product->id,
+                'delivered_products' => $successfulDeliveries,
+                'safe_stock' => $safetyStock,
                 'product_name' => $product->product_name,
                 'current_quantity' => $product->quantity,
                 'category_name' => $product->category->category_name ?? 'Uncategorized',
@@ -62,10 +71,75 @@ class ProductRestockController extends BaseController
             return $product['needs_reorder'] === true;
         });
 
+        // Paginate the results (limited to $limit per page)
+        $paginatedResults = $filteredResults->forPage($page, $limit);
+
+        // Calculate the last page based on the total count and items per page
+        $lastPage = ceil($filteredResults->count() / $limit);
+
         return response()->json([
-            'data' => $filteredResults->values(), // Reset array keys
+            'data' => $paginatedResults->values(),  // Reset array keys
+            'pagination' => [
+                'total' => $filteredResults->count(),
+                'per_page' => $limit,
+                'current_page' => $page,
+                'last_page' => $lastPage,
+            ],
         ]);
     }
+
+
+
+// Temporary commented;
+    // public function reorderLevel()
+    // {
+    //     // Define lead time
+    //     $leadTime = 14; // Default lead time in days
+
+    //     // Fetch all products with their category
+    //     $products = Product::with('category')->get();
+
+    //     // Calculate reorder details
+    //     $results = $products->map(function ($product) use ($leadTime) {
+    //         // Fetch total successful deliveries (use the last 30 days by default)
+    //         $successfulDeliveries = DB::table('delivery_products')
+    //             ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+    //             ->where('delivery_products.product_id', $product->id)
+    //             ->whereIn('deliveries.status', ['OD', 'P', 'S']) // Only successful statuses
+    //             ->where('deliveries.created_at', '>=', now()->subDays(30)) // Last 30 days
+    //             ->sum('delivery_products.quantity');
+
+    //         // Calculate average daily usage
+    //         $averageDailyUsage = $successfulDeliveries / 30;
+
+    //         // Determine safety stock (from category or default to 70)
+    //         $safetyStock = $product->category->safety_stock ?? 70;
+
+    //         // Calculate reorder level
+    //         $reorderLevel = ($averageDailyUsage * $leadTime) + $safetyStock;
+
+    //         return [
+    //             'product_id' => $product->id,
+    //             'delivered_products' => $successfulDeliveries,
+    //             'safe_stock' => $safetyStock,
+    //             'product_name' => $product->product_name,
+    //             'current_quantity' => $product->quantity,
+    //             'category_name' => $product->category->category_name ?? 'Uncategorized',
+    //             'average_daily_usage' => round($averageDailyUsage, 2),
+    //             'reorder_level' => round($reorderLevel, 2),
+    //             'needs_reorder' => $product->quantity <= $reorderLevel,
+    //         ];
+    //     });
+
+    //     // Filter to include only products that need reorder
+    //     $filteredResults = $results->filter(function ($product) {
+    //         return $product['needs_reorder'] === true;
+    //     });
+
+    //     return response()->json([
+    //         'data' => $filteredResults->values(), // Reset array keys
+    //     ]);
+    // }
 
 
 
