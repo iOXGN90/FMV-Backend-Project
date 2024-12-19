@@ -24,11 +24,11 @@ class ProductRestockController extends BaseController
     {
         $leadTime = 14; // Default lead time in days
         $page = $request->input('page', 1);
-        $limit = $request->input('limit', 10);
+        $limit = $request->input('limit', 20);
 
         // Fetch all products with category relation
         $products = Product::with('category')
-            ->orderBy('quantity', 'asc')
+            ->orderBy('quantity', 'desc')
             ->get();
 
         // Calculate reorder details
@@ -42,12 +42,13 @@ class ProductRestockController extends BaseController
 
             $averageDailyUsage = $successfulDeliveries / 30;
             $safetyStock = $product->category->safety_stock ?? 70;
-            $reorderLevel = ($averageDailyUsage * 14) + $safetyStock;
+            $reorderLevel = ($averageDailyUsage * $leadTime) + $safetyStock;
 
             return [
                 'product_id' => $product->id,
                 'product_name' => $product->product_name,
                 'current_quantity' => $product->quantity,
+                'category_name' => $product->category->category_name ?? 'N/A', // Include category name
                 'reorder_level' => round($reorderLevel, 2),
                 'needs_reorder' => $product->quantity <= $reorderLevel,
             ];
@@ -74,6 +75,7 @@ class ProductRestockController extends BaseController
             'reorder_count' => $totalReorderCount, // Total count of products needing reorder
         ]);
     }
+
 
 
 

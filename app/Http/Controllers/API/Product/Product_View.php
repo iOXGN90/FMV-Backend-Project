@@ -36,6 +36,16 @@ class Product_View extends BaseController
             $query->where('product_name', 'LIKE', "%{$search}%");
         }
 
+        // Filter by needs_reorder
+        if ($request->has('needs_reorder') && $request->input('needs_reorder') === 'true') {
+            $query->where(function ($query) {
+                $query->whereColumn('quantity', '<', DB::raw('(SELECT COALESCE(SUM(quantity), 0) / 30 * 5 + 20
+                    FROM delivery_products dp
+                    WHERE dp.product_id = products.id
+                      AND EXISTS (SELECT 1 FROM deliveries d WHERE dp.delivery_id = d.id AND d.status = "S"))'));
+            });
+        }
+
         // Add sorting with validation to prevent invalid columns
         $validSortColumns = ['id', 'quantity', 'original_price', 'product_name'];
         $sortBy = in_array($request->input('sort_by'), $validSortColumns) ? $request->input('sort_by') : 'id';
@@ -74,7 +84,7 @@ class Product_View extends BaseController
                 'product_name' => $product->product_name,
                 'original_price' => number_format($product->original_price, 2, '.', ''), // Format price
                 'quantity' => $product->quantity, // Integer quantity
-                'successful_deliveries' => number_format($successfulDeliveries, 2, '.', ''), // Format successful deliveries
+                'successful_deliveries' => $successfulDeliveries,
                 'reorder_level' => number_format($reorderLevel, 2, '.', ''), // Format reorder level
                 'needs_reorder' => $needsReorder, // Boolean, no formatting needed
             ];
@@ -91,6 +101,8 @@ class Product_View extends BaseController
             'totalValue' => number_format($totalValue, 2, '.', ''), // Format total value
         ]);
     }
+
+
     public function index_overview(Request $request)
     {
         // Validate or set default values
