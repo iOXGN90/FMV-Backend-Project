@@ -28,7 +28,7 @@ class ProductRestockController extends BaseController
 
         // Fetch all products with category relation
         $products = Product::with('category')
-            ->orderBy('quantity', 'desc')
+            ->orderBy('quantity', 'asc')
             ->get();
 
         // Calculate reorder details

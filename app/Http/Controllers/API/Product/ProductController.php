@@ -19,7 +19,17 @@ class ProductController extends BaseController
         $validator = Validator::make($request->all(), [
             'category_id' => 'required|exists:categories,id',
             'original_price' => 'required|numeric',
-            'product_name' => 'required|string|max:255',
+            'product_name' => [
+                'required',
+                'string',
+                'max:255',
+                // Add custom rule to check for unique product name
+                function ($attribute, $value, $fail) {
+                    if (Product::where('product_name', $value)->exists()) {
+                        $fail('The product name already exists.');
+                    }
+                },
+            ],
             'quantity' => 'required|integer',
         ]);
 
@@ -44,6 +54,7 @@ class ProductController extends BaseController
     }
 
 
+
     // Display the specified Product.
     public function show($id)
     {
@@ -60,9 +71,19 @@ class ProductController extends BaseController
     {
         // Validate the request
         $validator = Validator::make($request->all(), [
-            'category_id' => 'nullable|exists:categories,id',  // Category is optional in this case
+            'category_id' => 'nullable|exists:categories,id',  // Category is optional
             'original_price' => 'nullable|numeric',  // Price is optional and numeric
-            'product_name' => 'nullable|string|max:255',  // Product name is optional
+            'product_name' => [
+                'nullable',
+                'string',
+                'max:255',
+                // Add a custom rule to check for unique product name excluding the current product
+                function ($attribute, $value, $fail) use ($id) {
+                    if (Product::where('product_name', $value)->where('id', '<>', $id)->exists()) {
+                        $fail('The product name already exists.');
+                    }
+                },
+            ],
             'quantity' => 'nullable|integer|min:1',  // Quantity is optional but must be greater than zero
         ]);
 
@@ -108,6 +129,7 @@ class ProductController extends BaseController
             return response()->json(['message' => 'An error occurred while updating the product'], 500);
         }
     }
+
 
 
 
