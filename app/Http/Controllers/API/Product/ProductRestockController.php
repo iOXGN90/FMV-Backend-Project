@@ -340,6 +340,7 @@ class ProductRestockController extends BaseController
         }
 
         $transactions = collect();
+        $totalRestockedQuantity = 0; // Initialize restock quantity sum
 
         // Fetch Restock Transactions if applicable
         if ($transactionType === 'all' || $transactionType === 'Restock') {
@@ -360,7 +361,11 @@ class ProductRestockController extends BaseController
                 $restocks->where('product_restock_orders.created_at', '>=', $dateLimit);
             }
 
-            $transactions = $transactions->merge($restocks->get());
+            // Calculate total restocked quantity
+            $restockResults = $restocks->get();
+            $totalRestockedQuantity = $restockResults->sum('quantity');
+
+            $transactions = $transactions->merge($restockResults);
         }
 
         // Fetch Delivery Transactions if applicable
@@ -430,6 +435,7 @@ class ProductRestockController extends BaseController
             'product_name' => $product->product_name,
             'product_created_date' => $product->created_at->format('m/d/Y'),
             'remaining_quantity' => $product->quantity,
+            'total_restocked_quantity' => $totalRestockedQuantity, // Added total restock quantity here
             'product_id' => $product->id,
             'transactions' => [
                 'data' => $paginatedTransactions,
@@ -442,6 +448,7 @@ class ProductRestockController extends BaseController
             ],
         ]);
     }
+
 
 
 
