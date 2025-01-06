@@ -39,9 +39,12 @@ class UserController extends BaseController
     public function index_employee(): JsonResponse
     {
         // Paginate the users, 20 per page
-        $users = User::paginate(20);
+        $users = User::with('userType:id,user_type')->paginate(20);
 
-        return response()->json(['success' => 'Users retrieved successfully.', 'data' => $users], 200);
+        return response()->json([
+            'success' => 'Users retrieved successfully.',
+            'data' => $users
+        ], 200);
     }
 
     public function user_by_id($id): JsonResponse

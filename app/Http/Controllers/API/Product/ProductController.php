@@ -4,11 +4,12 @@ namespace App\Http\Controllers\API\Product;
 
 use App\Http\Controllers\API\BaseController;
 
-use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductRestockOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends BaseController
 {
@@ -16,42 +17,58 @@ class ProductController extends BaseController
     // create a newly Product in storage.
     public function create(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'category_id' => 'required|exists:categories,id',
-            'original_price' => 'required|numeric',
-            'product_name' => [
-                'required',
-                'string',
-                'max:255',
-                // Add custom rule to check for unique product name
-                function ($attribute, $value, $fail) {
-                    if (Product::where('product_name', $value)->exists()) {
-                        $fail('The product name already exists.');
-                    }
-                },
-            ],
-            'quantity' => 'required|integer',
-        ]);
+        DB::beginTransaction();
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
+        try {
+            // Validate the input
+            $validator = Validator::make($request->all(), [
+                'category_id' => 'required|exists:categories,id',
+                'original_price' => 'required|numeric',
+                'product_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    function ($attribute, $value, $fail) {
+                        if (Product::where('product_name', $value)->exists()) {
+                            $fail('The product name already exists.');
+                        }
+                    },
+                ],
+                'quantity' => 'required|integer|min:1', // Validate initial stock quantity
+                'user_id' => 'required|exists:users,id', // Ensure valid user for restocking
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json($validator->errors(), 400);
+            }
+
+            // Create the product (add the initial quantity)
+            $product = Product::create($request->only(['category_id', 'product_name', 'original_price', 'quantity']));
+
+            // Log the initial quantity as a restock entry
+            ProductRestockOrder::create([
+                'product_id' => $product->id,
+                'quantity' => $request->quantity,
+                'user_id' => $request->user_id, // Log which user created the restock
+            ]);
+
+            DB::commit();
+
+            // Return response
+            $response = [
+                'product_id' => $product->id,
+                'product_name' => $product->product_name,
+                'category_name' => $product->category->category_name,
+                'total_stock' => $product->quantity, // Total stock in products table
+            ];
+
+            return response()->json($response, 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        $product = Product::create($request->all());
-
-        // Load the category relationship
-        $product->load('category');
-
-        // Create a custom response array
-        $response = [
-            'product_id' => $product->id,
-            'category_name' => $product->category->category_name,
-            'product_name' => $product->product_name,
-            'quantity' => $product->quantity,
-        ];
-
-        return response()->json($response, 200, [], JSON_UNESCAPED_SLASHES);
     }
+
 
 
 

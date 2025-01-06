@@ -19,6 +19,36 @@ class ProductRestockController extends BaseController
         return response()->json($ProductRestockOrders);
     }
 
+    public function restockOrderByProductId($productID)
+    {
+        // Retrieve the product details
+        $product = Product::with('category')->find($productID);
+
+        if (!$product) {
+            return response()->json(['message' => 'Product not found'], 404);
+        }
+
+        // Retrieve restock orders for the product
+        $ProductRestockOrders = ProductRestockOrder::with('user')
+            ->where('product_id', $productID)
+            ->get();
+
+        // Calculate the total restock accumulated
+        $totalRestockedQuantity = $ProductRestockOrders->sum('quantity');
+
+        // Return the response with in stock and total restock accumulated
+        return response()->json([
+            'product_id' => $productID,
+            'product_name' => $product->product_name,
+            'category_name' => $product->category->category_name ?? null,
+            'in_stock' => $product->quantity, // Current stock
+            'total_restocked_quantity' => $totalRestockedQuantity, // Total restocked quantity
+            'restock_orders' => $ProductRestockOrders // Detailed restock orders
+        ], 200);
+    }
+
+
+
 
     public function reorderLevel(Request $request)
     {
@@ -184,13 +214,31 @@ class ProductRestockController extends BaseController
     // Display the specified product restock order.
     public function show($id)
     {
+        // Retrieve the specific Product Restock Order with relationships
         $ProductRestockOrder = ProductRestockOrder::with('user', 'product')->find($id);
 
         if (is_null($ProductRestockOrder)) {
             return response()->json(['message' => 'Product Restock Order not found'], 404);
         }
 
-        return response()->json($ProductRestockOrder);
+        // Calculate the total restocked quantity for the product
+        $totalRestockedQuantity = ProductRestockOrder::where('product_id', $ProductRestockOrder->product_id)->sum('quantity');
+
+        // Get the total stock for the product
+        $totalStock = $ProductRestockOrder->product->quantity;
+
+        // Prepare a custom response
+        $response = [
+            'restock_id' => $ProductRestockOrder->id,
+            'product_id' => $ProductRestockOrder->product_id,
+            'product_name' => $ProductRestockOrder->product->product_name,
+            'restock_quantity' => $ProductRestockOrder->quantity,
+            'total_restocked_quantity' => $totalRestockedQuantity,
+            'total_stock' => $totalStock,
+            'user' => $ProductRestockOrder->user, // Include the user who handled the restock
+        ];
+
+        return response()->json($response);
     }
 
     // Update the specified restock order in storage.
@@ -269,7 +317,10 @@ class ProductRestockController extends BaseController
             return response()->json(['error' => 'Product not found'], 404);
         }
 
-        // Fetch time period filter
+        // Get transaction type from the request
+        $transactionType = $request->input('transactionType', 'all'); // Default to 'all' if not specified
+
+        // Time period filter
         $timePeriod = $request->input('timePeriod', 'all');
         $dateLimit = null;
 
@@ -288,60 +339,93 @@ class ProductRestockController extends BaseController
                 break;
         }
 
-        // Fetch Restock Transactions (IN)
-        $restocks = DB::table('product_restock_orders')
-            ->join('products', 'product_restock_orders.product_id', '=', 'products.id')
-            ->select(
-                DB::raw('NULL as delivery_id'),
-                'product_restock_orders.quantity',
-                DB::raw('FORMAT(product_restock_orders.quantity * products.original_price, 2) as total_value'),
-                'product_restock_orders.created_at as date',
-                DB::raw('"IN" as transaction_type'),
-                DB::raw('NULL as delivery_status'),
-                DB::raw('NULL as total_damages')
-            )
-            ->where('product_restock_orders.product_id', $product_id);
+        $transactions = collect();
 
-        if ($dateLimit) {
-            $restocks->where('product_restock_orders.created_at', '>=', $dateLimit);
+        // Fetch Restock Transactions if applicable
+        if ($transactionType === 'all' || $transactionType === 'Restock') {
+            $restocks = DB::table('product_restock_orders')
+                ->join('products', 'product_restock_orders.product_id', '=', 'products.id')
+                ->select(
+                    DB::raw('NULL as delivery_id'),
+                    'product_restock_orders.quantity',
+                    DB::raw('FORMAT(product_restock_orders.quantity * products.original_price, 2) as total_value'),
+                    'product_restock_orders.created_at as date',
+                    DB::raw('"Restock" as transaction_type'),
+                    DB::raw('NULL as delivery_status'),
+                    DB::raw('NULL as total_damages')
+                )
+                ->where('product_restock_orders.product_id', $product_id);
+
+            if ($dateLimit) {
+                $restocks->where('product_restock_orders.created_at', '>=', $dateLimit);
+            }
+
+            $transactions = $transactions->merge($restocks->get());
         }
 
-        // Fetch Delivery Transactions (OUT) and execute immediately
-        $deliveries = DB::table('delivery_products as dp')
-            ->join('deliveries as d', 'dp.delivery_id', '=', 'd.id')
-            ->join('product_details as pd', 'd.purchase_order_id', '=', 'pd.purchase_order_id')
-            ->select(
-                'dp.delivery_id',
-                'dp.product_id',
-                'dp.quantity',
-                'pd.price',
-                DB::raw('(dp.quantity * pd.price) AS total_value'),
-                'd.created_at as date',
-                DB::raw('"OUT" as transaction_type'),
-                'd.status as delivery_status'
-            )
-            ->where('dp.product_id', $product_id)
-            ->where('d.status', 'S')
-            ->distinct()
-            ->get(); // EXECUTE the OUT query here
+        // Fetch Delivery Transactions if applicable
+        if ($transactionType === 'all' || $transactionType === 'Delivery') {
+            $deliveries = DB::table('delivery_products as dp')
+                ->join('deliveries as d', 'dp.delivery_id', '=', 'd.id')
+                ->join('product_details as pd', 'd.purchase_order_id', '=', 'pd.purchase_order_id')
+                ->select(
+                    'dp.delivery_id',
+                    'dp.product_id',
+                    'dp.quantity',
+                    'dp.no_of_damages',
+                    'pd.price',
+                    DB::raw('(dp.quantity * pd.price) AS total_value'),
+                    'd.created_at as date',
+                    DB::raw('"Delivery" as transaction_type'),
+                    'd.status as delivery_status'
+                )
+                ->where('dp.product_id', $product_id)
+                ->where('d.status', 'S')
+                ->distinct();
 
-        // Execute the IN query and get results
-        $restockResults = $restocks->get();
+            if ($dateLimit) {
+                $deliveries->where('d.created_at', '>=', $dateLimit);
+            }
 
-        // Combine Results into a Collection
-        $transactions = collect($restockResults)->merge($deliveries);
+            $transactions = $transactions->merge($deliveries->get());
+        }
 
-        // Sort Transactions by Date
+        // Fetch Walk-In Transactions if applicable
+        if ($transactionType === 'all' || $transactionType === 'Walk-In') {
+            $walkIns = DB::table('purchase_orders as po')
+                ->join('product_details as pd', 'po.id', '=', 'pd.purchase_order_id')
+                ->select(
+                    DB::raw('NULL as delivery_id'),
+                    'pd.product_id',
+                    'pd.quantity',
+                    'pd.price',
+                    DB::raw('(pd.quantity * pd.price) AS total_value'),
+                    'po.created_at as date',
+                    DB::raw('"Walk-In" as transaction_type'),
+                    DB::raw('NULL as delivery_status'),
+                    DB::raw('NULL as total_damages')
+                )
+                ->where('pd.product_id', $product_id)
+                ->where('po.sale_type_id', '=', 2); // Assuming '2' corresponds to 'Walk-In'
+
+            if ($dateLimit) {
+                $walkIns->where('po.created_at', '>=', $dateLimit);
+            }
+
+            $transactions = $transactions->merge($walkIns->get());
+        }
+
+        // Sort transactions by date
         $sortedTransactions = $transactions->sortByDesc('date')->values();
 
         // Pagination Setup
-        $perPage = $request->input('perPage', 20);
+        $perPage = $request->input('perPage', 10);
         $currentPage = $request->input('page', 1);
         $offset = ($currentPage - 1) * $perPage;
 
         $paginatedTransactions = $sortedTransactions->slice($offset, $perPage)->values();
 
-        // Return Response
+        // Return response
         return response()->json([
             'product_name' => $product->product_name,
             'product_created_date' => $product->created_at->format('m/d/Y'),
@@ -358,10 +442,6 @@ class ProductRestockController extends BaseController
             ],
         ]);
     }
-
-
-
-
 
 
 

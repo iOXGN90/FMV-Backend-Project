@@ -179,6 +179,7 @@ use App\Http\Controllers\API\SalesInsight\TopProductSales;
 // Start Product ReStocks
     Route::post('products-restock', [ProductRestockController::class, 'create']);
     Route::get('products-restock', [ProductRestockController::class, 'index']);
+    Route::get('products-restock/{productID}', [ProductRestockController::class, 'restockOrderByProductId']);
     Route::get('products-restock/{id}', [ProductRestockController::class, 'show']);
     Route::put('products-restock/{id}', [ProductRestockController::class, 'update']);
     Route::delete('products-restock', [ProductRestockController::class, 'destroy']);
