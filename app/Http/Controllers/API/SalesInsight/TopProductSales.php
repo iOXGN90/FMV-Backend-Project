@@ -219,40 +219,45 @@ class TopProductSales extends BaseController
 
         public function annualTopDamagedProducts(Request $request)
         {
-            // Inputs from the request
-            $year = $request->input('year', now()->format('Y')); // Default to current year
-            $perPage = $request->input('perPage', 20);           // Default to 20 items per page
+            $year = $request->input('year', now()->year);
+            $month = $request->input('month', null); // Optional month filter
 
-            // Query to fetch top damaged products for the entire year
-            $topDamagedProducts = Product::select(
-                    'products.id as product_id',
-                    'products.product_name',
-                    'products.original_price as price',
-                    DB::raw('SUM(delivery_products.no_of_damages) as total_damages') // Sum valid damages
-                )
-                ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
-                ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
-                ->where('deliveries.status', 'S') // Only include successful deliveries
-                ->whereYear('deliveries.created_at', $year) // Filter by year only
+            Log::info("Fetching Top Damaged Products - Year: {$year}, Month: {$month}");
+
+            $query = Product::select(
+                'products.id as product_id',
+                'products.product_name',
+                'products.original_price as price',
+                DB::raw('SUM(delivery_products.no_of_damages) as total_damages')
+            )
+            ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
+            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+            ->where('deliveries.status', 'S') // Only successful deliveries
+            ->whereYear('deliveries.created_at', $year);
+
+            // Optional month filter
+            if (!is_null($month)) {
+                $query->whereMonth('deliveries.created_at', $month);
+            }
+
+            $topDamagedProducts = $query
                 ->groupBy('products.id', 'products.product_name', 'products.original_price')
-                ->orderByDesc('total_damages') // Sort by total damages in descending order
-                ->paginate($perPage);
+                ->orderByDesc('total_damages')
+                ->paginate(20);
 
-            // Return response with paginated data and pagination metadata
             return response()->json([
                 'success' => true,
-                'data' => $topDamagedProducts->items(), // Paginated data
+                'data' => $topDamagedProducts->items(),
                 'pagination' => [
                     'total' => $topDamagedProducts->total(),
                     'perPage' => $topDamagedProducts->perPage(),
                     'currentPage' => $topDamagedProducts->currentPage(),
                     'lastPage' => $topDamagedProducts->lastPage(),
                 ],
-            ], 200);
+            ]);
         }
 
+
     // Annual's Data
-
-
 
 }
