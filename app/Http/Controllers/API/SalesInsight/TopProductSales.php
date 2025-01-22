@@ -4,9 +4,10 @@ namespace App\Http\Controllers\API\SalesInsight;
 
 use App\Http\Controllers\API\BaseController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 use App\Models\Product;
-use Illuminate\Support\Facades\DB;
 
 
 class TopProductSales extends BaseController
@@ -224,38 +225,47 @@ class TopProductSales extends BaseController
 
             Log::info("Fetching Top Damaged Products - Year: {$year}, Month: {$month}");
 
-            $query = Product::select(
-                'products.id as product_id',
-                'products.product_name',
-                'products.original_price as price',
-                DB::raw('SUM(delivery_products.no_of_damages) as total_damages')
-            )
-            ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
-            ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
-            ->where('deliveries.status', 'S') // Only successful deliveries
-            ->whereYear('deliveries.created_at', $year);
+            try {
+                $query = Product::select(
+                    'products.id as product_id',
+                    'products.product_name',
+                    'products.original_price as price',
+                    DB::raw('SUM(delivery_products.no_of_damages) as total_damages')
+                )
+                ->join('delivery_products', 'products.id', '=', 'delivery_products.product_id')
+                ->join('deliveries', 'delivery_products.delivery_id', '=', 'deliveries.id')
+                ->where('deliveries.status', 'S') // Only successful deliveries
+                ->whereYear('deliveries.created_at', $year);
 
-            // Optional month filter
-            if (!is_null($month)) {
-                $query->whereMonth('deliveries.created_at', $month);
+                // Optional month filter
+                if (!is_null($month)) {
+                    Log::info("Applying month filter: {$month}");
+                    $query->whereMonth('deliveries.created_at', $month);
+                }
+
+                $topDamagedProducts = $query
+                    ->groupBy('products.id', 'products.product_name', 'products.original_price')
+                    ->orderByDesc('total_damages')
+                    ->paginate(20);
+
+                Log::info("Query executed successfully.");
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $topDamagedProducts->items(),
+                    'pagination' => [
+                        'total' => $topDamagedProducts->total(),
+                        'perPage' => $topDamagedProducts->perPage(),
+                        'currentPage' => $topDamagedProducts->currentPage(),
+                        'lastPage' => $topDamagedProducts->lastPage(),
+                    ],
+                ]);
+            } catch (\Exception $e) {
+                Log::error("Error fetching top damaged products: {$e->getMessage()}");
+                return response()->json(['success' => false, 'message' => 'Server error occurred.'], 500);
             }
-
-            $topDamagedProducts = $query
-                ->groupBy('products.id', 'products.product_name', 'products.original_price')
-                ->orderByDesc('total_damages')
-                ->paginate(20);
-
-            return response()->json([
-                'success' => true,
-                'data' => $topDamagedProducts->items(),
-                'pagination' => [
-                    'total' => $topDamagedProducts->total(),
-                    'perPage' => $topDamagedProducts->perPage(),
-                    'currentPage' => $topDamagedProducts->currentPage(),
-                    'lastPage' => $topDamagedProducts->lastPage(),
-                ],
-            ]);
         }
+
 
 
     // Annual's Data
