@@ -248,7 +248,8 @@ class Deliveries_View extends BaseController
         }
 
         // Update delivery status to 'P'
-        $delivery->status = 'P';
+        $delivery->status = 'OD';
+
 
         // Optionally update the delivery man
         if (!empty($validated['delivery_man_id'])) {
