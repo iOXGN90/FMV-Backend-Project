@@ -36,6 +36,8 @@ use App\Http\Controllers\API\PurchaseOrder\PurchaseOrder_GetRemainingBalanceOfPr
 use App\Http\Controllers\API\SalesInsight\PurchaseOrder_SalesInsights_View;
 use App\Http\Controllers\API\SalesInsight\TopProductSales;
 
+use App\Http\Controllers\API\Inventory\View_Inventory;
+
 // End Import
 
 /*
@@ -175,6 +177,8 @@ use App\Http\Controllers\API\SalesInsight\TopProductSales;
 
     Route::get('view/{product_id}/Product-Profile/', [ProductRestockController::class, 'productTransactions']);
     Route::get('view/reorder-level', [ProductRestockController::class, 'reorderLevel']);
+
+    Route::get('view/inventory/transactions/', [View_Inventory::class, 'ViewTransaction']);
 
 // Start Product ReStocks
     Route::post('products-restock', [ProductRestockController::class, 'create']);
